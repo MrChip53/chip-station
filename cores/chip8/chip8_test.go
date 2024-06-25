@@ -104,3 +104,39 @@ func TestChip8Emulator_CoraxPlus(t *testing.T) {
 	e.LoadROM(rom3)
 	e.Loop()
 }
+
+//go:embed 4-flags.ch8
+var rom4 []byte
+
+//go:embed output/4-flags-test.bin
+var rom4Test []byte
+
+func TestChip8Emulator_Flags(t *testing.T) {
+	e := Chip8Emulator{}
+	e.Initialize(Hooks{
+		Decode: func(opcode uint16, drawCount uint64) bool {
+			if drawCount > 78 {
+				return opcode&0xF000 == 0x1000
+			}
+			return false
+		},
+		Draw: func(display [64][32]uint8, drawCount uint64) {
+			if drawCount != 78 {
+				return
+			}
+
+			bytes := make([]byte, 64*32)
+			for y := 0; y < 32; y++ {
+				for x := 0; x < 64; x++ {
+					bytes[y*64+x] = display[x][y]
+				}
+			}
+
+			if !reflect.DeepEqual(bytes, rom4Test) {
+				t.Fatal("Test failed")
+			}
+		},
+	})
+	e.LoadROM(rom4)
+	e.Loop()
+}

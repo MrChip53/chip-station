@@ -145,15 +145,34 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 		case 0x3:
 			e.v[x] ^= e.v[y]
 		case 0x4:
+			c := 0
+			if int(e.v[x])+int(e.v[y]) > 255 {
+				c = 1
+			}
 			e.v[x] += e.v[y]
+			e.v[0xF] = uint8(c)
 		case 0x5:
+			c := 1
+			if e.v[y] > e.v[x] {
+				c = 0
+			}
 			e.v[x] -= e.v[y]
+			e.v[0xF] = uint8(c)
 		case 0x6:
+			c := e.v[x] & 0x01
 			e.v[x] = e.v[y] >> 1
+			e.v[0xF] = uint8(c)
 		case 0x7:
+			c := 0x01
+			if e.v[x] > e.v[y] {
+				c = 0x00
+			}
 			e.v[x] = e.v[y] - e.v[x]
+			e.v[0xF] = uint8(c)
 		case 0xE:
+			c := e.v[y] & 0x80
 			e.v[x] = e.v[y] << 1
+			e.v[0xF] = uint8(c) >> 7
 		}
 	case 0x9:
 		if e.v[x] != e.v[y] {
