@@ -115,6 +115,8 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 		e.pc = nnn
 	case 0x6:
 		e.v[x] = uint8(nn)
+	case 0x7:
+		e.v[x] += uint8(nn)
 	case 0xA:
 		e.i = nnn
 	case 0xD:
