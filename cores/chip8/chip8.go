@@ -27,7 +27,7 @@ const (
 var defaultFont []byte
 
 type (
-	DecodeHook func(opcode uint16) bool
+	DecodeHook func(opcode uint16, drawCount uint64) bool
 	DrawHook   func(display [SCREEN_WIDTH][SCREEN_HEIGHT]uint8, drawCount uint64)
 )
 
@@ -98,11 +98,13 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 	nn := opcode & 0x00FF
 	nnn := opcode & 0x0FFF
 
-	e.abort = e.hooks.Decode != nil && e.hooks.Decode(opcode)
+	e.abort = e.hooks.Decode != nil && e.hooks.Decode(opcode, e.drawCount)
 
 	if op == 0x0 {
 		if opcode == 0x00E0 {
 			e.clearDisplay()
+		} else if opcode == 0x00EE {
+			e.pc = e.stack.Pop()
 		} else {
 			log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
 			panic("not implemented")
@@ -113,10 +115,50 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 	switch op {
 	case 0x1:
 		e.pc = nnn
+	case 0x2:
+		e.stack.Push(e.pc)
+		e.pc = nnn
+	case 0x3:
+		if e.v[x] == uint8(nn) {
+			e.pc += 2
+		}
+	case 0x4:
+		if e.v[x] != uint8(nn) {
+			e.pc += 2
+		}
+	case 0x5:
+		if e.v[x] == e.v[y] {
+			e.pc += 2
+		}
 	case 0x6:
 		e.v[x] = uint8(nn)
 	case 0x7:
 		e.v[x] += uint8(nn)
+	case 0x8:
+		switch n {
+		case 0x0:
+			e.v[x] = e.v[y]
+		case 0x1:
+			e.v[x] |= e.v[y]
+		case 0x2:
+			e.v[x] &= e.v[y]
+		case 0x3:
+			e.v[x] ^= e.v[y]
+		case 0x4:
+			e.v[x] += e.v[y]
+		case 0x5:
+			e.v[x] -= e.v[y]
+		case 0x6:
+			e.v[x] = e.v[y] >> 1
+		case 0x7:
+			e.v[x] = e.v[y] - e.v[x]
+		case 0xE:
+			e.v[x] = e.v[y] << 1
+		}
+	case 0x9:
+		if e.v[x] != e.v[y] {
+			e.pc += 2
+		}
 	case 0xA:
 		e.i = nnn
 	case 0xD:
@@ -138,6 +180,23 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 			e.hooks.Draw(e.display, e.drawCount)
 		}
 		e.drawCount++
+	case 0xF:
+		switch nn {
+		case 0x1E:
+			e.i += uint16(e.v[x])
+		case 0x33:
+			e.memory[e.i] = e.v[x] / 100
+			e.memory[e.i+1] = (e.v[x] / 10) % 10
+			e.memory[e.i+2] = e.v[x] % 10
+		case 0x55:
+			for i := 0; i <= int(x); i++ {
+				e.memory[e.i+uint16(i)] = e.v[i]
+			}
+		case 0x65:
+			for i := 0; i <= int(x); i++ {
+				e.v[i] = e.memory[e.i+uint16(i)]
+			}
+		}
 	default:
 		log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
 		panic("opcode not implemented")
