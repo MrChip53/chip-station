@@ -1,6 +1,10 @@
 package chip8
 
 import (
+	_ "embed"
+	"log"
+	"time"
+
 	"github.com/mrchip53/chip-station/utilities"
 )
 
@@ -16,7 +20,21 @@ const (
 	SCREEN_HEIGHT     = 32
 	NUM_KEYS          = 16
 	NUM_REGISTERS     = 16
+	IPS               = 700
 )
+
+//go:embed font.bin
+var defaultFont []byte
+
+type (
+	DecodeHook func(opcode uint16) bool
+	DrawHook   func(display [SCREEN_WIDTH][SCREEN_HEIGHT]uint8, drawCount uint64)
+)
+
+type Hooks struct {
+	Decode DecodeHook
+	Draw   DrawHook
+}
 
 type Chip8Emulator struct {
 	memory     [MEMORY_SIZE]byte
@@ -25,18 +43,34 @@ type Chip8Emulator struct {
 	soundTimer uint8
 	delayTimer uint8
 	keyState   [NUM_KEYS]uint8
+	hooks      Hooks
+
+	cycleCount uint64
+	drawCount  uint64
 
 	pc uint16
 	i  uint16
 	v  [NUM_REGISTERS]uint8
+
+	// Testing stuff
+	abort bool
 }
 
-func (e *Chip8Emulator) Initialize() {
+func (e *Chip8Emulator) Initialize(hooks Hooks) {
 	e.pc = ROM_START_ADDRESS
-	// Load fontset
+	copy(e.memory[:], defaultFont)
+	e.stack = utilities.NewStack(16)
+	e.hooks = hooks
 }
 
 func (e *Chip8Emulator) Loop() {
+	for {
+		if e.abort {
+			break
+		}
+		e.cycle()
+		time.Sleep(time.Second / IPS)
+	}
 }
 
 func (e *Chip8Emulator) LoadROM(rom []byte) {
@@ -44,6 +78,9 @@ func (e *Chip8Emulator) LoadROM(rom []byte) {
 }
 
 func (e *Chip8Emulator) cycle() {
+	opcode := e.fetch()
+	e.decode(opcode)
+	e.cycleCount++
 }
 
 func (e *Chip8Emulator) fetch() uint16 {
@@ -54,7 +91,72 @@ func (e *Chip8Emulator) fetch() uint16 {
 }
 
 func (e *Chip8Emulator) decode(opcode uint16) {
+	op := opcode & 0xF000 >> 12
+	x := (opcode & 0x0F00) >> 8
+	y := (opcode & 0x00F0) >> 4
+	n := opcode & 0x000F
+	nn := opcode & 0x00FF
+	nnn := opcode & 0x0FFF
+
+	e.abort = e.hooks.Decode != nil && e.hooks.Decode(opcode)
+
+	if op == 0x0 {
+		if opcode == 0x00E0 {
+			e.clearDisplay()
+		} else {
+			log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
+			panic("not implemented")
+		}
+		return
+	}
+
+	switch op {
+	case 0x1:
+		e.pc = nnn
+	case 0x6:
+		e.v[x] = uint8(nn)
+	case 0xA:
+		e.i = nnn
+	case 0xD:
+		x := uint16(e.v[x] % SCREEN_WIDTH)
+		y := uint16(e.v[y] % SCREEN_HEIGHT)
+		e.v[0xF] = 0
+		for i := uint16(0); i < n; i++ {
+			sprite := e.memory[e.i+i]
+			for j := uint16(0); j < 8; j++ {
+				if (sprite & (0x80 >> j)) != 0 {
+					if e.display[x+j][y+i] == 1 {
+						e.v[0xF] = 1
+					}
+					e.display[x+j][y+i] ^= 1
+				}
+			}
+		}
+		if e.hooks.Draw != nil {
+			e.hooks.Draw(e.display, e.drawCount)
+		}
+		e.drawCount++
+	default:
+		log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
+		panic("opcode not implemented")
+	}
 }
 
 func (e *Chip8Emulator) execute(opcode uint16) {
+}
+
+func (e *Chip8Emulator) clearDisplay() {
+	for i := 0; i < SCREEN_WIDTH; i++ {
+		for j := 0; j < SCREEN_HEIGHT; j++ {
+			e.display[i][j] = 0
+		}
+	}
+}
+
+func (e *Chip8Emulator) GetDisplay() [SCREEN_WIDTH][SCREEN_HEIGHT]uint8 {
+	return e.display
+}
+
+func (e *Chip8Emulator) ScreenshotPNG(filename string) {
+	utilities.SavePNG(e.display, filename)
 }
