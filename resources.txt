@@ -1,0 +1,8 @@
+Chip8
+
+https://www.laurencescotford.net/2020/07/19/chip-8-on-the-cosmac-vip-arithmetic-and-logic-instructions/
+https://github.com/Timendus/chip8-test-suite?tab=readme-ov-file#chip-8-splash-screen
+https://multigesture.net/articles/how-to-write-an-emulator-chip-8-interpreter/
+
+8080 - Space Invaders
+http://emulator101.com/
