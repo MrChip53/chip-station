@@ -20,7 +20,7 @@ const (
 	SCREEN_HEIGHT     = 32
 	NUM_KEYS          = 16
 	NUM_REGISTERS     = 16
-	IPF               = 12
+	IPF               = 20
 )
 
 //go:embed font.bin
@@ -51,6 +51,7 @@ type Chip8Emulator struct {
 	drawCount  uint64
 	frameCount uint64
 	start      time.Time
+	ipf        int
 
 	pc uint16
 	i  uint16
@@ -69,6 +70,7 @@ func (e *Chip8Emulator) Initialize(hooks Hooks) {
 	e.stack = utilities.NewStack(16)
 	e.hooks = hooks
 	e.lastKeyReleased = 0xFF
+	e.ipf = IPF
 }
 
 func (e *Chip8Emulator) Start() {
@@ -106,7 +108,7 @@ func (e *Chip8Emulator) Loop() {
 			e.hooks.Draw(e.drawCount, fps)
 		}
 		e.drawCount++
-		for i := 0; i < IPF; i++ {
+		for i := 0; i < e.ipf; i++ {
 			if e.abort || e.draw {
 				break
 			}
@@ -332,6 +334,10 @@ func (e *Chip8Emulator) GetDisplay() [SCREEN_WIDTH][SCREEN_HEIGHT]uint8 {
 	return e.display
 }
 
+func (e *Chip8Emulator) GetRom() []byte {
+	return e.memory[ROM_START_ADDRESS:]
+}
+
 func (e *Chip8Emulator) ScreenshotPNG(filename string) {
 	utilities.SavePNG(e.display, filename)
 }
@@ -345,4 +351,8 @@ func (e *Chip8Emulator) SetKeyState(key, state uint8) {
 	if state == 0 {
 		e.lastKeyReleased = key
 	}
+}
+
+func (e *Chip8Emulator) SetIPF(ipf int) {
+	e.ipf = ipf
 }

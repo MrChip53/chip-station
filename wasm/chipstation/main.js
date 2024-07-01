@@ -88,7 +88,7 @@ function attachRomUploadListeners() {
 }
 
 function attachResizeListener(canvas, container) {
-  const resize = (event) => {
+  const resize = () => {
     canvas.width = document.body.clientWidth*0.9;
     canvas.height = (document.body.clientHeight-container.clientHeight)*0.9;
   };
@@ -131,6 +131,26 @@ function startRom(rom) {
   loadRom(rom);
 }
 
+function downloadRom() {
+  const rom = getRom();
+  const blob = new Blob([rom], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'rom.bin';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function changeCycles() {
+  const cycles = parseInt(document.getElementById('cycles').value);
+  if (isNaN(cycles)) {
+    return;
+  }
+  setIpf(cycles);
+}
+
 (async () => {
   const canvas = document.getElementById('screen');
   const container = document.getElementById('container');
@@ -140,5 +160,5 @@ function startRom(rom) {
   const { resize } = attachResizeListener(canvas, container);
   resize();
   
-  console.log('ChipStation JS Initialized');
+  console.log('ChipStation Initialized');
 })();

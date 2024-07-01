@@ -38,6 +38,8 @@ func main() {
 
 	js.Global().Set("setKeyState", js.FuncOf(setKeyState))
 	js.Global().Set("loadRom", js.FuncOf(loadRom))
+	js.Global().Set("getRom", js.FuncOf(getRom))
+	js.Global().Set("setIpf", js.FuncOf(setIpf))
 	opcodeSpan = js.Global().Get("document").Call("getElementById", "opcode")
 	pcSpan = js.Global().Get("document").Call("getElementById", "pc")
 	fpsSpan = js.Global().Get("document").Call("getElementById", "fps")
@@ -52,6 +54,19 @@ func main() {
 
 	go runGameLoop()
 	<-done
+}
+
+func setIpf(this js.Value, p []js.Value) interface{} {
+	ipf := p[0].Int()
+	e.SetIPF(ipf)
+	return nil
+}
+
+func getRom(this js.Value, p []js.Value) interface{} {
+	rom := e.GetRom()
+	romBytes := js.Global().Get("Uint8Array").New(len(rom))
+	js.CopyBytesToJS(romBytes, rom)
+	return romBytes
 }
 
 func setKeyState(this js.Value, p []js.Value) interface{} {

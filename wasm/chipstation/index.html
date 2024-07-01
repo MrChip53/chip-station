@@ -8,6 +8,17 @@
         <div id="container" style="display: flex; flex-direction: column; width: 100%;">
           <div style="display: flex; flex-direction: row; width: 100%; justify-content: space-around;">
             <p style="color: white;">Drag and drop a rom anywhere to load it.</p>
+            <select onchange="changeCycles()" id="cycles" style="width: 100px;">
+              <option value="7">7 Cycles/Frame</option>
+              <option value="15">15 Cycles/Frame</option>
+              <option value="20" selected>20 Cycles/Frame</option>
+              <option value="30">30 Cycles/Frame</option>
+              <option value="100">100 Cycles/Frame</option>
+              <option value="200">200 Cycles/Frame</option>
+              <option value="500">500 Cycles/Frame</option>
+              <option value="1000">1000 Cycles/Frame</option>
+            </select>
+            <button onclick="downloadRom()">Download ROM</button>
             <div style="display: flex; flex-direction: row; gap: 0.5em;">
               <button onclick="loadTank()">Load Tank Test Rom for FX0A</button>
               <input type="text" id="rom-text" style="width: 300px;" placeholder="ROM Hex (comma or space delimited)">
