@@ -17,6 +17,107 @@ const keyMap = {
   'v': 0xF,
 };
 
+const roms = {
+  'OUTLAW': {
+    name: 'Outlaw',
+    rom: 'outlaw.ch8',
+    description: 'Move with ASWD and fire with E.',
+    cycles: "30",
+  },
+  '15PUZZLE': {
+    name: '15PUZZLE',
+    rom: '15PUZZLE',
+  },
+  'BLINKY': {
+    name: 'BLINKY',
+    rom: 'BLINKY',
+  },
+  'BLITZ': {
+    name: 'BLITZ',
+    rom: 'BLITZ',
+  },
+  'BRIX': {
+    name: 'BRIX',
+    rom: 'BRIX',
+  },
+  'CONNECT4': {
+    name: 'CONNECT4',
+    rom: 'CONNECT4',
+  },
+  'GUESS': {
+    name: 'GUESS',
+    rom: 'GUESS',
+  },
+  'HIDDEN': {
+    name: 'HIDDEN',
+    rom: 'HIDDEN',
+  },
+  'INVADERS': {
+    name: 'INVADERS',
+    rom: 'INVADERS',
+  },
+  'KALEID': {
+    name: 'KALEID',
+    rom: 'KALEID',
+  },
+  'MAZE': {
+    name: 'MAZE',
+    rom: 'MAZE',
+  },
+  'MERLIN': {
+    name: 'MERLIN',
+    rom: 'MERLIN',
+  },
+  'MISSILE': {
+    name: 'MISSILE',
+    rom: 'MISSILE',
+  },
+  'PONG': {
+    name: 'PONG',
+    rom: 'PONG',
+  },
+  'PONG2': {
+    name: 'PONG2',
+    rom: 'PONG2',
+  },
+  'PUZZLE': {
+    name: 'PUZZLE',
+    rom: 'PUZZLE',
+  },
+  'SYZYGY': {
+    name: 'SYZYGY',
+    rom: 'SYZYGY',
+  },
+  'TANK': {
+    name: 'TANK',
+    rom: 'TANK',
+  },
+  'TETRIS': {
+    name: 'TETRIS',
+    rom: 'TETRIS',
+  },
+  'TICTAC': {
+    name: 'TICTAC',
+    rom: 'TICTAC',
+  },
+  'UFO': {
+    name: 'UFO',
+    rom: 'UFO',
+  },
+  'VBRIX': {
+    name: 'VBRIX',
+    rom: 'VBRIX',
+  },
+  'VERS': {
+    name: 'VERS',
+    rom: 'VERS',
+  },
+  'WIPEOFF': {
+    name: 'WIPEOFF',
+    rom: 'WIPEOFF',
+  },
+};
+
 async function loadWasm() {
   if (WebAssembly && !WebAssembly.instantiateStreaming) { // polyfill
     WebAssembly.instantiateStreaming = async (resp, importObject) => {
@@ -100,11 +201,15 @@ function attachResizeListener(canvas, container) {
 
 function loadRomFromSelect() {
   const select = document.getElementById('roms');
-  const rom = select.options[select.selectedIndex].value;
-  fetch(`roms/${rom}`)
+  const romKey = select.options[select.selectedIndex].value;
+  const rom = roms[romKey];
+  fetch(`roms/${rom.rom}`)
     .then(response => response.arrayBuffer())
     .then(buffer => {
       const uint8Array = new Uint8Array(buffer);
+      document.getElementById('cycles').value = rom.cycles;
+      document.getElementById('rom-description').innerText = rom.description;
+      changeCycles();
       startRom(uint8Array);
     });
 }
@@ -151,14 +256,27 @@ function changeCycles() {
   setIpf(cycles);
 }
 
+function initRomSelect() {
+  const select = document.getElementById('roms');
+  select.innerHTML = '';
+  for (const key in roms) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.text = roms[key].name;
+    select.appendChild(option);
+  }
+}
+
 (async () => {
   const canvas = document.getElementById('screen');
   const container = document.getElementById('container');
+  initRomSelect();
   await loadWasm();
   const keyListeners = attachKeyListeners();
   const romUploadListeners = attachRomUploadListeners();
   const { resize } = attachResizeListener(canvas, container);
   resize();
+  changeCycles();
   
   console.log('ChipStation Initialized');
 })();

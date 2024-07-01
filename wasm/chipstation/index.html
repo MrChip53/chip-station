@@ -26,34 +26,11 @@
             </div>
             <div style="display: flex; flex-direction: row; gap: 0.5em;">
               <select id="roms" style="width: 100px;">
-                <option value="15PUZZLE">15PUZZLE</option>
-                <option value="BLINKY">BLINKY</option>
-                <option value="BLITZ">BLITZ</option>
-                <option value="BRIX">BRIX</option>
-                <option value="CONNECT4">CONNECT4</option>
-                <option value="GUESS">GUESS</option>
-                <option value="HIDDEN">HIDDEN</option>
-                <option value="INVADERS">INVADERS</option>
-                <option value="KALEID">KALEID</option>
-                <option value="MAZE">MAZE</option>
-                <option value="MERLIN">MERLIN</option>
-                <option value="MISSILE">MISSILE</option>
-                <option value="PONG">PONG</option>
-                <option value="PONG2">PONG2</option>
-                <option value="PUZZLE">PUZZLE</option>
-                <option value="SYZYGY">SYZYGY</option>
-                <option value="TANK">TANK</option>
-                <option value="TETRIS">TETRIS</option>
-                <option value="TICTAC">TICTAC</option>
-                <option value="UFO">UFO</option>
-                <option value="VBRIX">VBRIX</option>
-                <option value="VERS">VERS</option>
-                <option value="WIPEOFF">WIPEOFF</option>
               </select>
               <button onclick="loadRomFromSelect()">Load</button>
             </div>
           </div>
-          <p style="color: white;">Press '1' to '4' to 'q' to 'v' to press keys.</p>
+          <p id="rom-description" style="color: white;">Press '1' to '4' to 'q' to 'v' to press keys.</p>
           <div style="display: flex; flex-direction: row; width: 100%; justify-content: space-around;">
             <p style="color: white;">FPS: <span id="fps">N/A</span></p>
             <p style="color: white;">PC: <span id="pc">N/A</span></p>
