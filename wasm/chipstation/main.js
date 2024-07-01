@@ -89,8 +89,8 @@ function attachRomUploadListeners() {
 
 function attachResizeListener(canvas, container) {
   const resize = (event) => {
-    canvas.width = document.body.clientWidth;
-    canvas.height = document.body.clientHeight-container.clientHeight;
+    canvas.width = document.body.clientWidth*0.9;
+    canvas.height = (document.body.clientHeight-container.clientHeight)*0.9;
   };
 
   window.addEventListener('resize', resize);
@@ -139,5 +139,6 @@ function startRom(rom) {
   const romUploadListeners = attachRomUploadListeners();
   const { resize } = attachResizeListener(canvas, container);
   resize();
+  
   console.log('ChipStation JS Initialized');
 })();
