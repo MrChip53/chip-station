@@ -2,8 +2,11 @@ package chip8
 
 import (
 	_ "embed"
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/mrchip53/chip-station/utilities"
 )
 
 //go:embed 1-chip8-logo.ch8
@@ -138,5 +141,30 @@ func TestChip8Emulator_Flags(t *testing.T) {
 		},
 	})
 	e.LoadROM(rom4)
+	e.Loop()
+}
+
+//go:embed 5-quirks.ch8
+var rom5 []byte
+
+func TestChip8Emulator_Chip8Quirks(t *testing.T) {
+	e := Chip8Emulator{}
+	e.Initialize(Hooks{
+		Decode: func(opcode uint16, drawCount uint64) bool {
+			return false
+		},
+		Draw: func(display [64][32]uint8, drawCount uint64) {
+			bytes := make([]byte, 64*32)
+			for y := 0; y < 32; y++ {
+				for x := 0; x < 64; x++ {
+					bytes[y*64+x] = display[x][y]
+				}
+			}
+
+			utilities.SavePNG(display, fmt.Sprintf("screenshots/5-quirks-%d.png", drawCount))
+		},
+	})
+	e.SetMemory(0x1FF, []byte{0x01})
+	e.LoadROM(rom5)
 	e.Loop()
 }

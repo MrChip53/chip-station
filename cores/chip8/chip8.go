@@ -20,15 +20,15 @@ const (
 	SCREEN_HEIGHT     = 32
 	NUM_KEYS          = 16
 	NUM_REGISTERS     = 16
-	IPS               = 700
+	IPF               = 12
 )
 
 //go:embed font.bin
 var defaultFont []byte
 
 type (
-	DecodeHook func(opcode uint16, drawCount uint64) bool
-	DrawHook   func(display [SCREEN_WIDTH][SCREEN_HEIGHT]uint8, drawCount uint64)
+	DecodeHook func(pc uint16, opcode uint16, drawCount uint64) bool
+	DrawHook   func(drawCount uint64, fps float64)
 )
 
 type Hooks struct {
@@ -37,23 +37,30 @@ type Hooks struct {
 }
 
 type Chip8Emulator struct {
-	memory     [MEMORY_SIZE]byte
-	display    [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
-	stack      *utilities.Stack
-	soundTimer uint8
-	delayTimer uint8
-	keyState   [NUM_KEYS]uint8
-	hooks      Hooks
+	memory          [MEMORY_SIZE]byte
+	display         [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
+	stack           *utilities.Stack
+	soundTimer      uint8
+	delayTimer      uint8
+	keyState        [NUM_KEYS]uint8
+	lastKeyReleased uint8
+	hooks           Hooks
+	draw            bool
 
 	cycleCount uint64
 	drawCount  uint64
+	frameCount uint64
+	start      time.Time
 
 	pc uint16
 	i  uint16
 	v  [NUM_REGISTERS]uint8
 
+	lastRomSize int
+
 	// Testing stuff
-	abort bool
+	abort   bool
+	stopped bool
 }
 
 func (e *Chip8Emulator) Initialize(hooks Hooks) {
@@ -61,20 +68,65 @@ func (e *Chip8Emulator) Initialize(hooks Hooks) {
 	copy(e.memory[:], defaultFont)
 	e.stack = utilities.NewStack(16)
 	e.hooks = hooks
+	e.lastKeyReleased = 0xFF
+}
+
+func (e *Chip8Emulator) Start() {
+	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
+	e.stack = utilities.NewStack(16)
+	e.pc = ROM_START_ADDRESS
+	e.stopped = false
+}
+
+func (e *Chip8Emulator) Stop() {
+	e.stopped = true
 }
 
 func (e *Chip8Emulator) Loop() {
+	e.start = time.Now()
 	for {
 		if e.abort {
 			break
 		}
-		e.cycle()
-		time.Sleep(time.Second / IPS)
+
+		if e.stopped {
+			time.Sleep(time.Second / 60)
+			continue
+		}
+
+		start := time.Now()
+		if e.hooks.Draw != nil {
+			fps := float64(e.frameCount) / time.Since(e.start).Seconds()
+			e.hooks.Draw(e.drawCount, fps)
+		}
+		e.drawCount++
+		for i := 0; i < IPF; i++ {
+			if e.abort || e.draw {
+				break
+			}
+			e.cycle()
+		}
+		e.draw = false
+		if e.delayTimer > 0 {
+			e.delayTimer--
+		}
+		if e.soundTimer > 0 {
+			e.soundTimer--
+		}
+		e.lastKeyReleased = 0xFF
+		e.frameCount++
+		elapsed := time.Since(start)
+		time.Sleep(time.Second/60 - elapsed)
 	}
 }
 
 func (e *Chip8Emulator) LoadROM(rom []byte) {
 	copy(e.memory[ROM_START_ADDRESS:], rom)
+	e.lastRomSize = len(rom)
+}
+
+func (e *Chip8Emulator) GetRomSize() int {
+	return e.lastRomSize
 }
 
 func (e *Chip8Emulator) cycle() {
@@ -98,7 +150,7 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 	nn := opcode & 0x00FF
 	nnn := opcode & 0x0FFF
 
-	e.abort = e.hooks.Decode != nil && e.hooks.Decode(opcode, e.drawCount)
+	e.abort = e.hooks.Decode != nil && e.hooks.Decode(e.pc-2, opcode, e.drawCount)
 
 	if op == 0x0 {
 		if opcode == 0x00E0 {
@@ -140,10 +192,13 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 			e.v[x] = e.v[y]
 		case 0x1:
 			e.v[x] |= e.v[y]
+			e.v[0xF] = 0
 		case 0x2:
 			e.v[x] &= e.v[y]
+			e.v[0xF] = 0
 		case 0x3:
 			e.v[x] ^= e.v[y]
+			e.v[0xF] = 0
 		case 0x4:
 			c := 0
 			if int(e.v[x])+int(e.v[y]) > 255 {
@@ -180,6 +235,10 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 		}
 	case 0xA:
 		e.i = nnn
+	case 0xB:
+		e.pc = nnn + uint16(e.v[0])
+	case 0xC:
+		e.v[x] = uint8(uint16(utilities.RandInt(0, 255)) & nn)
 	case 0xD:
 		x := uint16(e.v[x] % SCREEN_WIDTH)
 		y := uint16(e.v[y] % SCREEN_HEIGHT)
@@ -188,6 +247,9 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 			sprite := e.memory[e.i+i]
 			for j := uint16(0); j < 8; j++ {
 				if (sprite & (0x80 >> j)) != 0 {
+					if x+j >= SCREEN_WIDTH || y+i >= SCREEN_HEIGHT {
+						continue
+					}
 					if e.display[x+j][y+i] == 1 {
 						e.v[0xF] = 1
 					}
@@ -195,26 +257,53 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 				}
 			}
 		}
-		if e.hooks.Draw != nil {
-			e.hooks.Draw(e.display, e.drawCount)
+		e.draw = true
+	case 0xE:
+		switch nn {
+		case 0x9E:
+			if e.keyState[e.v[x]] == 1 {
+				e.pc += 2
+			}
+		case 0xA1:
+			if e.keyState[e.v[x]] == 0 {
+				e.pc += 2
+			}
 		}
-		e.drawCount++
 	case 0xF:
 		switch nn {
+		case 0x07:
+			e.v[x] = e.delayTimer
+		case 0x15:
+			e.delayTimer = e.v[x]
+		case 0x18:
+			e.soundTimer = e.v[x]
 		case 0x1E:
 			e.i += uint16(e.v[x])
+		case 0x29:
+			e.i = uint16(e.v[x]) * 5
 		case 0x33:
 			e.memory[e.i] = e.v[x] / 100
 			e.memory[e.i+1] = (e.v[x] / 10) % 10
 			e.memory[e.i+2] = e.v[x] % 10
 		case 0x55:
 			for i := 0; i <= int(x); i++ {
-				e.memory[e.i+uint16(i)] = e.v[i]
+				e.memory[e.i] = e.v[i]
+				e.i++
 			}
 		case 0x65:
 			for i := 0; i <= int(x); i++ {
-				e.v[i] = e.memory[e.i+uint16(i)]
+				e.v[i] = e.memory[e.i]
+				e.i++
 			}
+		case 0x0A:
+			if e.lastKeyReleased < 0xFF {
+				e.v[x] = e.lastKeyReleased
+			} else {
+				e.pc -= 2
+			}
+		default:
+			log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
+			panic("opcode not implemented")
 		}
 	default:
 		log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
@@ -239,4 +328,15 @@ func (e *Chip8Emulator) GetDisplay() [SCREEN_WIDTH][SCREEN_HEIGHT]uint8 {
 
 func (e *Chip8Emulator) ScreenshotPNG(filename string) {
 	utilities.SavePNG(e.display, filename)
+}
+
+func (e *Chip8Emulator) SetMemory(address uint16, data []byte) {
+	copy(e.memory[address:], data)
+}
+
+func (e *Chip8Emulator) SetKeyState(key, state uint8) {
+	e.keyState[key] = state
+	if state == 0 {
+		e.lastKeyReleased = key
+	}
 }
