@@ -24,6 +24,12 @@ const roms = {
     description: 'Move with ASWD and fire with E.',
     cycles: "30",
   },
+  'SLIPPERY_SLOPE': {
+    name: 'Slippery Slope',
+    rom: 'slipperyslope.ch8',
+    description: 'Move with ASWD.',
+    cycles: "200",
+  },
   '15PUZZLE': {
     name: '15PUZZLE',
     rom: '15PUZZLE',
