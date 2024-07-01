@@ -95,6 +95,12 @@ func (e *Chip8Emulator) Loop() {
 		}
 
 		start := time.Now()
+
+		if start.Sub(e.start) > time.Second*15 {
+			e.start = time.Now()
+			e.frameCount = 0
+		}
+
 		if e.hooks.Draw != nil {
 			fps := float64(e.frameCount) / time.Since(e.start).Seconds()
 			e.hooks.Draw(e.drawCount, fps)
