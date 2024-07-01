@@ -17,17 +17,8 @@ attribute vec3 position;
 attribute vec3 color;
 varying vec3 vColor;
 
-vec3 rotateX(vec3 v) {
-    mat3 rotationMatrix = mat3(
-        1.0, 0.0,  0.0,
-        0.0, -1.0, 0.0,
-        0.0, 0.0, -1.0
-    );
-    return rotationMatrix * v;
-}
-
 void main(void) {
-  gl_Position = vec4(rotateX(position), 1.0);
+  gl_Position = vec4(position, 1.0);
   vColor = color;
 }
 `
@@ -40,92 +31,89 @@ void main(void) {
 }
 `
 
+type GlProgram struct {
+	gl *webgl.WebGL
+
+	program  webgl.Program
+	color    int
+	position int
+
+	vertexBuffer webgl.Buffer
+	colorBuffer  webgl.Buffer
+}
+
 type Chip8WebEmulator struct {
 	chip8.Chip8Emulator
 
-	numVertices int
-	vertices    []float32
-	colors      []float32
+	vertices []float32
+	colors   []float32
 
-	width        int
-	height       int
-	gl           *webgl.WebGL
-	vertexBuffer webgl.Buffer
-	colorBuffer  webgl.Buffer
-	glProgram    webgl.Program
+	glProgram *GlProgram
 }
 
 func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
 		Chip8Emulator: chip8.Chip8Emulator{},
 		colors:        []float32{},
-		gl:            gl,
-		width:         -1,
-		height:        -1,
-		vertexBuffer:  gl.CreateBuffer(),
-		colorBuffer:   gl.CreateBuffer(),
+		glProgram: &GlProgram{
+			gl:           gl,
+			vertexBuffer: gl.CreateBuffer(),
+			colorBuffer:  gl.CreateBuffer(),
+		},
 	}
 	e.calculateVertices()
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.vertexBuffer)
+	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.vertices), gl.STATIC_DRAW)
 	e.createGlProgram()
 	return e
 }
 
 func (e *Chip8WebEmulator) Draw() {
-	w := e.gl.Canvas.ClientWidth()
-	h := e.gl.Canvas.ClientHeight()
-
-	if e.width != w || e.height != h {
-		fmt.Println("Re-calculating vertices")
-		e.width = w
-		e.height = h
-
-		e.calculateVertices()
-		e.gl.BindBuffer(e.gl.ARRAY_BUFFER, e.vertexBuffer)
-		e.gl.BufferData(e.gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.vertices), e.gl.STATIC_DRAW)
-	}
+	gl := e.glProgram.gl
+	w := gl.Canvas.ClientWidth()
+	h := gl.Canvas.ClientHeight()
 
 	e.calculateColors()
-	e.gl.BindBuffer(e.gl.ARRAY_BUFFER, e.colorBuffer)
-	e.gl.BufferData(e.gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.colors), e.gl.STATIC_DRAW)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.colorBuffer)
+	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.colors), gl.STATIC_DRAW)
 
-	e.gl.UseProgram(e.glProgram)
+	gl.UseProgram(e.glProgram.program)
 
-	e.gl.BindBuffer(e.gl.ARRAY_BUFFER, e.vertexBuffer)
-	position := e.gl.GetAttribLocation(e.glProgram, "position")
-	e.gl.VertexAttribPointer(position, 3, e.gl.FLOAT, false, 0, 0)
-	e.gl.EnableVertexAttribArray(position)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.vertexBuffer)
+	gl.VertexAttribPointer(e.glProgram.position, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(e.glProgram.position)
 
-	e.gl.BindBuffer(e.gl.ARRAY_BUFFER, e.colorBuffer)
-	color := e.gl.GetAttribLocation(e.glProgram, "color")
-	e.gl.VertexAttribPointer(color, 3, e.gl.FLOAT, false, 0, 0)
-	e.gl.EnableVertexAttribArray(color)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.colorBuffer)
+	gl.VertexAttribPointer(e.glProgram.color, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(e.glProgram.color)
 
-	e.gl.ClearColor(0, 0, 0, 1)
-	e.gl.Clear(e.gl.COLOR_BUFFER_BIT)
-	e.gl.Enable(e.gl.DEPTH_TEST)
-	e.gl.Viewport(0, 0, w, h)
-	e.gl.DrawArrays(e.gl.TRIANGLES, 0, len(e.vertices)/3)
+	gl.ClearColor(0, 0, 0, 1)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+	gl.Enable(gl.DEPTH_TEST)
+	gl.Viewport(0, 0, w, h)
+	gl.DrawArrays(gl.TRIANGLES, 0, len(e.vertices)/3)
 }
 
 func (e *Chip8WebEmulator) calculateVertices() {
 	display := e.GetDisplay()
 	e.vertices = []float32{}
 	for y := 0; y < 32; y++ {
+		fy := 31 - y
 		for x := 0; x < 64; x++ {
 			if display[x][y] == 1 {
-				e.vertices = append(e.vertices, float32(x)/32-1, float32(y)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(y)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x)/32-1, float32(y+1)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(y)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(y+1)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x)/32-1, float32(y+1)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x)/32-1, float32(fy)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(fy)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x)/32-1, float32(fy+1)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(fy)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(fy+1)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x)/32-1, float32(fy+1)/16-1, 0)
 			} else {
-				e.vertices = append(e.vertices, float32(x)/32-1, float32(y)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(y)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x)/32-1, float32(y+1)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(y)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(y+1)/16-1, 0)
-				e.vertices = append(e.vertices, float32(x)/32-1, float32(y+1)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x)/32-1, float32(fy)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(fy)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x)/32-1, float32(fy+1)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(fy)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x+1)/32-1, float32(fy+1)/16-1, 0)
+				e.vertices = append(e.vertices, float32(x)/32-1, float32(fy+1)/16-1, 0)
 			}
 		}
 	}
@@ -171,46 +159,51 @@ func (e *Chip8WebEmulator) createGlProgram() {
 		panic(err)
 	}
 
-	e.glProgram = program
+	e.glProgram.program = program
+	e.glProgram.color = e.glProgram.gl.GetAttribLocation(program, "color")
+	e.glProgram.position = e.glProgram.gl.GetAttribLocation(program, "position")
 }
 
 func (e *Chip8WebEmulator) initVertexShader(src string) (webgl.Shader, error) {
-	s := e.gl.CreateShader(e.gl.VERTEX_SHADER)
-	e.gl.ShaderSource(s, src)
-	e.gl.CompileShader(s)
-	if !e.gl.GetShaderParameter(s, e.gl.COMPILE_STATUS).(bool) {
-		compilationLog := e.gl.GetShaderInfoLog(s)
+	gl := e.glProgram.gl
+	s := gl.CreateShader(gl.VERTEX_SHADER)
+	gl.ShaderSource(s, src)
+	gl.CompileShader(s)
+	if !gl.GetShaderParameter(s, gl.COMPILE_STATUS).(bool) {
+		compilationLog := gl.GetShaderInfoLog(s)
 		return webgl.Shader(js.Null()), fmt.Errorf("compile failed (VERTEX_SHADER) %v", compilationLog)
 	}
 	return s, nil
 }
 
 func (e *Chip8WebEmulator) initFragmentShader(src string) (webgl.Shader, error) {
-	s := e.gl.CreateShader(e.gl.FRAGMENT_SHADER)
-	e.gl.ShaderSource(s, src)
-	e.gl.CompileShader(s)
-	if !e.gl.GetShaderParameter(s, e.gl.COMPILE_STATUS).(bool) {
-		compilationLog := e.gl.GetShaderInfoLog(s)
+	gl := e.glProgram.gl
+	s := gl.CreateShader(gl.FRAGMENT_SHADER)
+	gl.ShaderSource(s, src)
+	gl.CompileShader(s)
+	if !gl.GetShaderParameter(s, gl.COMPILE_STATUS).(bool) {
+		compilationLog := gl.GetShaderInfoLog(s)
 		return webgl.Shader(js.Null()), fmt.Errorf("compile failed (FRAGMENT_SHADER) %v", compilationLog)
 	}
 	return s, nil
 }
 
 func (e *Chip8WebEmulator) linkShaders(fbVarings []string, shaders ...webgl.Shader) (webgl.Program, error) {
-	program := e.gl.CreateProgram()
+	gl := e.glProgram.gl
+	program := gl.CreateProgram()
 	for _, s := range shaders {
-		e.gl.AttachShader(program, s)
+		gl.AttachShader(program, s)
 	}
 	if len(fbVarings) > 0 {
-		e.gl.TransformFeedbackVaryings(program, fbVarings, e.gl.SEPARATE_ATTRIBS)
+		gl.TransformFeedbackVaryings(program, fbVarings, gl.SEPARATE_ATTRIBS)
 	}
-	e.gl.LinkProgram(program)
-	if !e.gl.GetProgramParameter(program, e.gl.LINK_STATUS).(bool) {
-		return webgl.Program(js.Null()), errors.New("link failed: " + e.gl.GetProgramInfoLog(program))
+	gl.LinkProgram(program)
+	if !gl.GetProgramParameter(program, gl.LINK_STATUS).(bool) {
+		return webgl.Program(js.Null()), errors.New("link failed: " + gl.GetProgramInfoLog(program))
 	}
 	return program, nil
 }
 
 func (e *Chip8WebEmulator) SetWebGL(gl *webgl.WebGL) {
-	e.gl = gl
+	e.glProgram.gl = gl
 }
