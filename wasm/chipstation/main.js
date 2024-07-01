@@ -119,7 +119,7 @@ function loadRomFromText(text) {
 }
 
 function loadRomFromUserText() {
-  const text = document.getElementById('user-rom-text').value;
+  const text = document.getElementById('rom-text').value;
   loadRomFromText(text);
 }
 
