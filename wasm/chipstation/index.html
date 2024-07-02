@@ -8,6 +8,11 @@
         <div id="container" style="display: flex; flex-direction: column; width: 100%;">
           <div style="display: flex; flex-direction: row; width: 100%; justify-content: space-around;">
             <p style="color: white;">Drag and drop a rom anywhere to load it.</p>
+            <div style="display: flex; flex-direction: row; gap: 0.5em;">
+              <input type="text" id="color" style="width: 100px;" placeholder="#000000">
+              <button onclick="setOnColorClick()">Set On Color</button>
+              <button onclick="setOffColorClick()">Set Off Color</button>
+            </div>
             <button onclick="play_pause()">Play/Pause</button>
             <select onchange="changeCycles()" id="cycles" style="width: 100px;">
               <option value="7">7 Cycles/Frame</option>

@@ -304,6 +304,26 @@ function play_pause() {
   }
 }
 
+function getColor() {
+  return document.getElementById('color').value.replace('#', '');
+}
+
+function setOnColorClick() {
+  const color = getColor();
+  if (!color.match(/^[0-9a-fA-F]{6}$/)) {
+    return;
+  }
+  setOnColor(parseInt(color, 16));
+}
+
+function setOffColorClick() {
+  const color = getColor();
+  if (!color.match(/^[0-9a-fA-F]{6}$/)) {
+    return;
+  }
+  setOffColor(parseInt(color, 16));
+}
+
 (async () => {
   const canvas = document.getElementById('screen');
   const container = document.getElementById('container');

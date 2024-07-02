@@ -51,6 +51,8 @@ func main() {
 	js.Global().Set("pause", js.FuncOf(pause))
 	js.Global().Set("resume", js.FuncOf(resume))
 	js.Global().Set("isPaused", js.FuncOf(isPaused))
+	js.Global().Set("setOnColor", js.FuncOf(setOnColor))
+	js.Global().Set("setOffColor", js.FuncOf(setOffColor))
 	opcodeSpan = js.Global().Get("document").Call("getElementById", "opcode")
 	pcSpan = js.Global().Get("document").Call("getElementById", "pc")
 	fpsSpan = js.Global().Get("document").Call("getElementById", "fps")
@@ -91,6 +93,18 @@ func resume(this js.Value, p []js.Value) interface{} {
 
 func isPaused(this js.Value, p []js.Value) interface{} {
 	return e.IsPaused()
+}
+
+func setOnColor(this js.Value, p []js.Value) interface{} {
+	rgb := p[0].Int()
+	e.SetOnColor(chip8web.NewColor(uint32(rgb)))
+	return nil
+}
+
+func setOffColor(this js.Value, p []js.Value) interface{} {
+	rgb := p[0].Int()
+	e.SetOffColor(chip8web.NewColor(uint32(rgb)))
+	return nil
 }
 
 func loadRom(this js.Value, p []js.Value) interface{} {
