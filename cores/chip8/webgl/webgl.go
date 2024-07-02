@@ -26,8 +26,12 @@ void main(void) {
 const fsSource = `
 precision mediump float;
 varying vec3 vColor;
+
 void main(void) {
-  gl_FragColor = vec4(vColor, 1.);
+  vec2 uv = gl_FragCoord.xy / vec2(64.0, 32.0);
+  float scanline = sin(uv.y * 64.0) * 0.05;
+  vec3 color = vColor.rgb + scanline;
+  gl_FragColor = vec4(color, 1.);
 }
 `
 
@@ -59,8 +63,8 @@ func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
 		Chip8Emulator: *chip8.NewChip8Emulator(),
 		colors:        []float32{},
-		onColor:       NewColor(0xFFFFFF),
-		offColor:      NewColor(0x000000),
+		onColor:       NewColor(0xF2CE03),
+		offColor:      NewColor(0x8E6903),
 		glContext: &GlContext{
 			gl:           gl,
 			vertexBuffer: gl.CreateBuffer(),
