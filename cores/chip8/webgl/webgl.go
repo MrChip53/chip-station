@@ -52,6 +52,7 @@ type Chip8WebEmulator struct {
 	onColor  Color
 
 	glContext *GlContext
+	beep      *Beep
 }
 
 func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
@@ -71,6 +72,19 @@ func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.vertices), gl.STATIC_DRAW)
 	e.createGlProgram()
 	return e
+}
+
+func (e *Chip8WebEmulator) PlayBeep() {
+	if e.beep == nil {
+		e.beep = NewBeep()
+	}
+	e.beep.Play()
+}
+
+func (e *Chip8WebEmulator) StopBeep() {
+	if e.beep != nil {
+		e.beep.Stop()
+	}
 }
 
 func (e *Chip8WebEmulator) Draw() {

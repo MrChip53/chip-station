@@ -29,11 +29,14 @@ var defaultFont []byte
 type (
 	DecodeHook func(pc uint16, opcode uint16, drawCount uint64) bool
 	DrawHook   func(drawCount uint64, fps float64)
+	SoundHook  func()
 )
 
 type Hooks struct {
-	Decode DecodeHook
-	Draw   DrawHook
+	Decode    DecodeHook
+	Draw      DrawHook
+	PlaySound SoundHook
+	StopSound SoundHook
 }
 
 type Chip8Emulator struct {
@@ -94,6 +97,7 @@ func (e *Chip8Emulator) Start() {
 }
 
 func (e *Chip8Emulator) reset() {
+	e.hooks.StopSound()
 	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
 	e.stack = utilities.NewStack(16)
 	e.soundTimer = 0
@@ -154,6 +158,9 @@ DrawLoop:
 		}
 		if e.soundTimer > 0 {
 			e.soundTimer--
+			if e.soundTimer == 0 {
+				e.hooks.StopSound()
+			}
 		}
 		e.lastKeyReleased = 0xFF
 		e.fps.Inc()
@@ -192,6 +199,7 @@ func (e *Chip8Emulator) SwapROM(rom []byte) {
 
 func (e *Chip8Emulator) hang() {
 	e.paused = true
+	e.hooks.StopSound()
 	e.fps.Pause()
 	if e.resumeChan != nil {
 		close(e.resumeChan)
@@ -200,6 +208,7 @@ func (e *Chip8Emulator) hang() {
 	select {
 	case <-e.resumeChan:
 		e.paused = false
+		e.hooks.PlaySound()
 		e.fps.Resume()
 	}
 }
@@ -359,6 +368,9 @@ func (e *Chip8Emulator) decode(opcode uint16) bool {
 			e.delayTimer = e.v[x]
 		case 0x18:
 			e.soundTimer = e.v[x]
+			if e.soundTimer > 0 {
+				e.hooks.PlaySound()
+			}
 		case 0x1E:
 			e.i += uint16(e.v[x])
 		case 0x29:

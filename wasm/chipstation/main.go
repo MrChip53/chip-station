@@ -44,6 +44,18 @@ func main() {
 	e = chip8web.NewChip8WebEmulator(gl)
 	go runGameLoop()
 
+	emulatorObj := js.Global().Get("Object").New()
+	emulatorObj.Set("setKeyState", js.FuncOf(setKeyState))
+	emulatorObj.Set("loadRom", js.FuncOf(loadRom))
+	emulatorObj.Set("getRom", js.FuncOf(getRom))
+	emulatorObj.Set("setIpf", js.FuncOf(setIpf))
+	emulatorObj.Set("pause", js.FuncOf(pause))
+	emulatorObj.Set("resume", js.FuncOf(resume))
+	emulatorObj.Set("isPaused", js.FuncOf(isPaused))
+	emulatorObj.Set("setOnColor", js.FuncOf(setOnColor))
+	emulatorObj.Set("setOffColor", js.FuncOf(setOffColor))
+	js.Global().Set("emulator", emulatorObj)
+
 	js.Global().Set("setKeyState", js.FuncOf(setKeyState))
 	js.Global().Set("loadRom", js.FuncOf(loadRom))
 	js.Global().Set("getRom", js.FuncOf(getRom))
@@ -127,6 +139,12 @@ func runGameLoop() {
 		Draw: func(drawCount uint64, fps float64) {
 			fpsSpan.Set("innerText", fmt.Sprintf("%.2f", fps))
 			e.Draw()
+		},
+		PlaySound: func() {
+			e.PlayBeep()
+		},
+		StopSound: func() {
+			e.StopBeep()
 		},
 	})
 	// e.SetMemory(0x1ff, []byte{1})

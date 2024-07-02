@@ -261,6 +261,14 @@ function startRom(rom) {
   loadRom(rom);
 }
 
+function beepListener() {
+  const buffer = 0.5;
+  if (this.currentTime > this.duration - buffer) {
+    this.currentTime = 0;
+    this.play();
+  }
+}
+
 function downloadRom() {
   const rom = getRom();
   const blob = new Blob([rom], { type: 'application/octet-stream' });

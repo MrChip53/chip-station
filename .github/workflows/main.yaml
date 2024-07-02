@@ -25,6 +25,7 @@ jobs:
           cp ./wasm/chipstation/wasm_exec.js ./dist
           cp ./wasm/chipstation/main.js ./dist
           cp ./wasm/chipstation/index.html ./dist
+          cp ./wasm/chipstation/beep.ogg ./dist
           mkdir ./dist/roms
           cp ./wasm/chipstation/roms/* ./dist/roms
       - name: Sync Files
