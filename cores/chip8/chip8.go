@@ -52,6 +52,8 @@ type Chip8Emulator struct {
 	pauseChan chan struct{}
 	// Send on this channel to resume the emulator
 	resumeChan chan struct{}
+	// Send on this channel to swap roms
+	swapRomChan chan []byte
 
 	cycleCount uint64
 	ipf        int
@@ -69,9 +71,13 @@ type Chip8Emulator struct {
 }
 
 func NewChip8Emulator() *Chip8Emulator {
-	return &Chip8Emulator{
-		fps: NewFpsCounter(),
+	e := &Chip8Emulator{
+		fps:         NewFpsCounter(),
+		pauseChan:   make(chan struct{}, 1),
+		swapRomChan: make(chan []byte, 1),
 	}
+	e.pauseChan <- struct{}{}
+	return e
 }
 
 func (e *Chip8Emulator) Initialize(hooks Hooks) {
@@ -81,17 +87,25 @@ func (e *Chip8Emulator) Initialize(hooks Hooks) {
 	e.hooks = hooks
 	e.lastKeyReleased = 0xFF
 	e.ipf = IPF
-	if e.pauseChan == nil {
-		e.pauseChan = make(chan struct{})
-	}
 }
 
 func (e *Chip8Emulator) Start() {
+	e.reset()
+}
+
+func (e *Chip8Emulator) reset() {
 	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
 	e.stack = utilities.NewStack(16)
+	e.soundTimer = 0
+	e.delayTimer = 0
+	e.keyState = [NUM_KEYS]uint8{}
+	e.lastKeyReleased = 0xFF
 	e.pc = ROM_START_ADDRESS
+	e.i = 0
+	e.v = [NUM_REGISTERS]uint8{}
 	e.paused = false
 	e.abort = false
+	e.fps.Reset()
 }
 
 func (e *Chip8Emulator) IsPaused() bool {
@@ -109,6 +123,13 @@ DrawLoop:
 		select {
 		case <-e.pauseChan:
 			e.hang()
+		default:
+		}
+
+		select {
+		case rom := <-e.swapRomChan:
+			e.loadRom(rom)
+			e.reset()
 		default:
 		}
 
@@ -141,7 +162,14 @@ DrawLoop:
 	}
 }
 
-func (e *Chip8Emulator) LoadROM(rom []byte) {
+func (e *Chip8Emulator) wipeRom() {
+	for i := ROM_START_ADDRESS; i < MEMORY_SIZE; i++ {
+		e.memory[i] = 0
+	}
+}
+
+func (e *Chip8Emulator) loadRom(rom []byte) {
+	e.wipeRom()
 	copy(e.memory[ROM_START_ADDRESS:], rom)
 	e.lastRomSize = len(rom)
 }
@@ -156,6 +184,10 @@ func (e *Chip8Emulator) Pause() {
 
 func (e *Chip8Emulator) Resume() {
 	e.resumeChan <- struct{}{}
+}
+
+func (e *Chip8Emulator) SwapROM(rom []byte) {
+	e.swapRomChan <- rom
 }
 
 func (e *Chip8Emulator) hang() {

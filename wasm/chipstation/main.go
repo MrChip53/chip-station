@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"fmt"
 	"syscall/js"
+	"time"
 
 	webgl "github.com/seqsense/webgl-go"
 
@@ -34,6 +35,15 @@ var rom4 []byte
 func main() {
 	var err error
 
+	canvas := js.Global().Get("document").Call("getElementById", "screen")
+	gl, err = webgl.New(canvas)
+	if err != nil {
+		panic(err)
+	}
+
+	e = chip8web.NewChip8WebEmulator(gl)
+	go runGameLoop()
+
 	js.Global().Set("setKeyState", js.FuncOf(setKeyState))
 	js.Global().Set("loadRom", js.FuncOf(loadRom))
 	js.Global().Set("getRom", js.FuncOf(getRom))
@@ -45,15 +55,7 @@ func main() {
 	pcSpan = js.Global().Get("document").Call("getElementById", "pc")
 	fpsSpan = js.Global().Get("document").Call("getElementById", "fps")
 	romSizeSpan = js.Global().Get("document").Call("getElementById", "romSize")
-	canvas := js.Global().Get("document").Call("getElementById", "screen")
 
-	gl, err = webgl.New(canvas)
-	if err != nil {
-		panic(err)
-	}
-	e = chip8web.NewChip8WebEmulator(gl)
-
-	go runGameLoop()
 	<-done
 }
 
@@ -96,9 +98,7 @@ func loadRom(this js.Value, p []js.Value) interface{} {
 	length := romBytes.Get("length").Int()
 	rom := make([]byte, length)
 	js.CopyBytesToGo(rom, romBytes)
-	e.Pause()
-	e.LoadROM([]byte(rom))
-	e.Start()
+	e.SwapROM([]byte(rom))
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", length))
 	return nil
 }
@@ -116,7 +116,11 @@ func runGameLoop() {
 		},
 	})
 	// e.SetMemory(0x1ff, []byte{1})
-	e.LoadROM(rom4)
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(rom4)))
+	e.SwapROM(rom4)
+	go func() {
+		time.Sleep(250 * time.Millisecond)
+		e.Resume()
+	}()
 	e.Loop()
 }
