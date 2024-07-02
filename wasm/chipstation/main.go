@@ -102,5 +102,6 @@ func runGameLoop() {
 	})
 	// e.SetMemory(0x1ff, []byte{1})
 	e.LoadROM(rom4)
+	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(rom4)))
 	e.Loop()
 }

@@ -341,7 +341,7 @@ func (e *Chip8Emulator) GetDisplay() [SCREEN_WIDTH][SCREEN_HEIGHT]uint8 {
 }
 
 func (e *Chip8Emulator) GetRom() []byte {
-	return e.memory[ROM_START_ADDRESS:]
+	return e.memory[ROM_START_ADDRESS : ROM_START_ADDRESS+uint16(e.lastRomSize)]
 }
 
 func (e *Chip8Emulator) ScreenshotPNG(filename string) {
