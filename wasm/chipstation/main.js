@@ -205,6 +205,29 @@ function attachResizeListener(canvas, container) {
   return { resize };
 }
 
+function attachVisibilityListener() {
+  let runningOnHide = false;
+
+  const visibilityChangeListener = () => {
+    if (document.hidden) {
+      runningOnHide = !isPaused();
+      if (runningOnHide) {
+        console.log("Pausing on hide");
+        pause();
+      }
+    } else {
+      if (runningOnHide) {
+        console.log("Resuming on show");
+        resume();
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', visibilityChangeListener);
+
+  return { visibilityChangeListener };
+}
+
 function loadRomFromSelect() {
   const select = document.getElementById('roms');
   const romKey = select.options[select.selectedIndex].value;
@@ -286,6 +309,7 @@ function play_pause() {
   const container = document.getElementById('container');
   initRomSelect();
   await loadWasm();
+  attachVisibilityListener();
   const keyListeners = attachKeyListeners();
   const romUploadListeners = attachRomUploadListeners();
   const { resize } = attachResizeListener(canvas, container);

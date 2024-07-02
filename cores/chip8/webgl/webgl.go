@@ -58,7 +58,7 @@ func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
 		Chip8Emulator: *chip8.NewChip8Emulator(),
 		colors:        []float32{},
-		onColor:       NewColor(0xFF0000),
+		onColor:       NewColor(0xFFFFFF),
 		offColor:      NewColor(0x000000),
 		glContext: &GlContext{
 			gl:           gl,

@@ -119,7 +119,7 @@ func runGameLoop() {
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(rom4)))
 	e.SwapROM(rom4)
 	go func() {
-		time.Sleep(250 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		e.Resume()
 	}()
 	e.Loop()
