@@ -48,13 +48,18 @@ type Chip8WebEmulator struct {
 	vertices []float32
 	colors   []float32
 
+	offColor Color
+	onColor  Color
+
 	glContext *GlContext
 }
 
 func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
-		Chip8Emulator: chip8.Chip8Emulator{},
+		Chip8Emulator: *chip8.NewChip8Emulator(),
 		colors:        []float32{},
+		onColor:       NewColor(0xFF0000),
+		offColor:      NewColor(0x000000),
 		glContext: &GlContext{
 			gl:           gl,
 			vertexBuffer: gl.CreateBuffer(),
@@ -87,7 +92,7 @@ func (e *Chip8WebEmulator) Draw() {
 	gl.VertexAttribPointer(e.glContext.color, 3, gl.FLOAT, false, 0, 0)
 	gl.EnableVertexAttribArray(e.glContext.color)
 
-	gl.ClearColor(0, 0, 0, 1)
+	gl.ClearColor(e.offColor.R, e.offColor.G, e.offColor.B, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.Enable(gl.DEPTH_TEST)
 	gl.Viewport(0, 0, w, h)
@@ -125,19 +130,19 @@ func (e *Chip8WebEmulator) calculateColors() {
 	for y := 0; y < 32; y++ {
 		for x := 0; x < 64; x++ {
 			if display[x][y] == 1 {
-				e.colors = append(e.colors, 1, 1, 1)
-				e.colors = append(e.colors, 1, 1, 1)
-				e.colors = append(e.colors, 1, 1, 1)
-				e.colors = append(e.colors, 1, 1, 1)
-				e.colors = append(e.colors, 1, 1, 1)
-				e.colors = append(e.colors, 1, 1, 1)
+				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
+				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
+				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
+				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
+				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
+				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
 			} else {
-				e.colors = append(e.colors, 0, 0, 0)
-				e.colors = append(e.colors, 0, 0, 0)
-				e.colors = append(e.colors, 0, 0, 0)
-				e.colors = append(e.colors, 0, 0, 0)
-				e.colors = append(e.colors, 0, 0, 0)
-				e.colors = append(e.colors, 0, 0, 0)
+				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
+				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
+				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
+				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
+				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
+				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
 			}
 		}
 	}
@@ -206,4 +211,12 @@ func (e *Chip8WebEmulator) linkShaders(fbVarings []string, shaders ...webgl.Shad
 
 func (e *Chip8WebEmulator) SetWebGL(gl *webgl.WebGL) {
 	e.glContext.gl = gl
+}
+
+func (e *Chip8WebEmulator) SetOffColor(c Color) {
+	e.offColor = c
+}
+
+func (e *Chip8WebEmulator) SetOnColor(c Color) {
+	e.onColor = c
 }
