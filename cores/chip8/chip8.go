@@ -46,11 +46,14 @@ type Chip8Emulator struct {
 	lastKeyReleased uint8
 	hooks           Hooks
 	draw            bool
+	fps             *FpsCounter
+
+	// Send on this channel to pause the emulator
+	pauseChan chan struct{}
+	// Send on this channel to resume the emulator
+	resumeChan chan struct{}
 
 	cycleCount uint64
-	drawCount  uint64
-	frameCount uint64
-	start      time.Time
 	ipf        int
 
 	pc uint16
@@ -60,8 +63,15 @@ type Chip8Emulator struct {
 	lastRomSize int
 
 	// Testing stuff
-	abort   bool
-	stopped bool
+	drawCount uint64
+	abort     bool
+	paused    bool
+}
+
+func NewChip8Emulator() *Chip8Emulator {
+	return &Chip8Emulator{
+		fps: NewFpsCounter(),
+	}
 }
 
 func (e *Chip8Emulator) Initialize(hooks Hooks) {
@@ -71,42 +81,41 @@ func (e *Chip8Emulator) Initialize(hooks Hooks) {
 	e.hooks = hooks
 	e.lastKeyReleased = 0xFF
 	e.ipf = IPF
+	if e.pauseChan == nil {
+		e.pauseChan = make(chan struct{})
+	}
 }
 
 func (e *Chip8Emulator) Start() {
 	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
 	e.stack = utilities.NewStack(16)
 	e.pc = ROM_START_ADDRESS
-	e.stopped = false
+	e.paused = false
+	e.abort = false
 }
 
-func (e *Chip8Emulator) Stop() {
-	e.stopped = true
+func (e *Chip8Emulator) IsPaused() bool {
+	return e.paused
 }
 
 func (e *Chip8Emulator) Loop() {
-	e.start = time.Now()
+	e.fps.Reset()
 DrawLoop:
 	for {
 		if e.abort {
 			break
 		}
 
-		if e.stopped {
-			time.Sleep(time.Second / 60)
-			continue
+		select {
+		case <-e.pauseChan:
+			e.hang()
+		default:
 		}
 
 		start := time.Now()
 
-		if start.Sub(e.start) > time.Second*15 {
-			e.start = time.Now()
-			e.frameCount = 0
-		}
-
 		if e.hooks.Draw != nil {
-			fps := float64(e.frameCount) / time.Since(e.start).Seconds()
-			e.hooks.Draw(e.drawCount, fps)
+			e.hooks.Draw(e.drawCount, e.fps.GetFps())
 		}
 		e.drawCount++
 		for i := 0; i < e.ipf; i++ {
@@ -126,7 +135,7 @@ DrawLoop:
 			e.soundTimer--
 		}
 		e.lastKeyReleased = 0xFF
-		e.frameCount++
+		e.fps.Inc()
 		elapsed := time.Since(start)
 		time.Sleep(time.Second/60 - elapsed)
 	}
@@ -139,6 +148,28 @@ func (e *Chip8Emulator) LoadROM(rom []byte) {
 
 func (e *Chip8Emulator) GetRomSize() int {
 	return e.lastRomSize
+}
+
+func (e *Chip8Emulator) Pause() {
+	e.pauseChan <- struct{}{}
+}
+
+func (e *Chip8Emulator) Resume() {
+	e.resumeChan <- struct{}{}
+}
+
+func (e *Chip8Emulator) hang() {
+	e.paused = true
+	e.fps.Pause()
+	if e.resumeChan != nil {
+		close(e.resumeChan)
+	}
+	e.resumeChan = make(chan struct{})
+	select {
+	case <-e.resumeChan:
+		e.paused = false
+		e.fps.Resume()
+	}
 }
 
 func (e *Chip8Emulator) cycle() (uint16, bool) {

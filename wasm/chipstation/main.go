@@ -38,6 +38,9 @@ func main() {
 	js.Global().Set("loadRom", js.FuncOf(loadRom))
 	js.Global().Set("getRom", js.FuncOf(getRom))
 	js.Global().Set("setIpf", js.FuncOf(setIpf))
+	js.Global().Set("pause", js.FuncOf(pause))
+	js.Global().Set("resume", js.FuncOf(resume))
+	js.Global().Set("isPaused", js.FuncOf(isPaused))
 	opcodeSpan = js.Global().Get("document").Call("getElementById", "opcode")
 	pcSpan = js.Global().Get("document").Call("getElementById", "pc")
 	fpsSpan = js.Global().Get("document").Call("getElementById", "fps")
@@ -74,12 +77,26 @@ func setKeyState(this js.Value, p []js.Value) interface{} {
 	return nil
 }
 
+func pause(this js.Value, p []js.Value) interface{} {
+	e.Pause()
+	return nil
+}
+
+func resume(this js.Value, p []js.Value) interface{} {
+	e.Resume()
+	return nil
+}
+
+func isPaused(this js.Value, p []js.Value) interface{} {
+	return e.IsPaused()
+}
+
 func loadRom(this js.Value, p []js.Value) interface{} {
 	romBytes := p[0]
 	length := romBytes.Get("length").Int()
 	rom := make([]byte, length)
 	js.CopyBytesToGo(rom, romBytes)
-	e.Stop()
+	e.Pause()
 	e.LoadROM([]byte(rom))
 	e.Start()
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", length))

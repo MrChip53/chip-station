@@ -273,6 +273,14 @@ function initRomSelect() {
   }
 }
 
+function play_pause() {
+  if (isPaused()) {
+    resume();
+  } else {
+    pause();
+  }
+}
+
 (async () => {
   const canvas = document.getElementById('screen');
   const container = document.getElementById('container');
