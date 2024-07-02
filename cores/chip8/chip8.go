@@ -208,7 +208,9 @@ func (e *Chip8Emulator) hang() {
 	select {
 	case <-e.resumeChan:
 		e.paused = false
-		e.hooks.PlaySound()
+		if e.soundTimer > 0 {
+			e.hooks.PlaySound()
+		}
 		e.fps.Resume()
 	}
 }
