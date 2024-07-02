@@ -236,6 +236,9 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 			c := e.v[y] & 0x80
 			e.v[x] = e.v[y] << 1
 			e.v[0xF] = uint8(c) >> 7
+		default:
+			log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
+			panic("opcode not implemented")
 		}
 	case 0x9:
 		if e.v[x] != e.v[y] {
@@ -276,6 +279,9 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 			if e.keyState[e.v[x]] == 0 {
 				e.pc += 2
 			}
+		default:
+			log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
+			panic("opcode not implemented")
 		}
 	case 0xF:
 		switch nn {
