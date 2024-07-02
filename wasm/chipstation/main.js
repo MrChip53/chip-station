@@ -202,6 +202,7 @@ function attachRomUploadListeners() {
       } else {
         loadRomFromText(text);
       }
+      document.body.style.backgroundColor = '#000';
     }
   };
 
