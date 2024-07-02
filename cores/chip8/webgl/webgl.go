@@ -62,7 +62,7 @@ type Chip8WebEmulator struct {
 func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
 		Chip8Emulator: *chip8.NewChip8Emulator(),
-		colors:        []float32{},
+		colors:        make([]float32, 64*32*3*2*3),
 		onColor:       NewColor(0xF2CE03),
 		offColor:      NewColor(0x8E6903),
 		glContext: &GlContext{
@@ -144,24 +144,24 @@ func (e *Chip8WebEmulator) calculateVertices() {
 
 func (e *Chip8WebEmulator) calculateColors() {
 	display := e.GetDisplay()
-	e.colors = []float32{}
 	for y := 0; y < 32; y++ {
 		for x := 0; x < 64; x++ {
+			offset := (y*64 + x) * 3 * 2 * 3
 			if display[x][y] == 1 {
-				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
-				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
-				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
-				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
-				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
-				e.colors = append(e.colors, e.onColor.R, e.onColor.G, e.onColor.B)
+				e.setGeometryColor(offset, 3, 2, e.onColor)
 			} else {
-				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
-				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
-				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
-				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
-				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
-				e.colors = append(e.colors, e.offColor.R, e.offColor.G, e.offColor.B)
+				e.setGeometryColor(offset, 3, 2, e.offColor)
 			}
+		}
+	}
+}
+
+func (e *Chip8WebEmulator) setGeometryColor(offset, verticeCount, geometryCount int, color Color) {
+	for i := 0; i < geometryCount; i++ {
+		for j := 0; j < verticeCount; j++ {
+			e.colors[(offset+i*verticeCount*3)+(j*3)] = color.R
+			e.colors[(offset+i*verticeCount*3)+(j*3)+1] = color.G
+			e.colors[(offset+i*verticeCount*3)+(j*3)+2] = color.B
 		}
 	}
 }
