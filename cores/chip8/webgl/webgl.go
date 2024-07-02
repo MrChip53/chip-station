@@ -31,7 +31,7 @@ void main(void) {
 }
 `
 
-type GlProgram struct {
+type GlContext struct {
 	gl *webgl.WebGL
 
 	program  webgl.Program
@@ -48,44 +48,44 @@ type Chip8WebEmulator struct {
 	vertices []float32
 	colors   []float32
 
-	glProgram *GlProgram
+	glContext *GlContext
 }
 
 func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
 		Chip8Emulator: chip8.Chip8Emulator{},
 		colors:        []float32{},
-		glProgram: &GlProgram{
+		glContext: &GlContext{
 			gl:           gl,
 			vertexBuffer: gl.CreateBuffer(),
 			colorBuffer:  gl.CreateBuffer(),
 		},
 	}
 	e.calculateVertices()
-	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.vertexBuffer)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glContext.vertexBuffer)
 	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.vertices), gl.STATIC_DRAW)
 	e.createGlProgram()
 	return e
 }
 
 func (e *Chip8WebEmulator) Draw() {
-	gl := e.glProgram.gl
+	gl := e.glContext.gl
 	w := gl.Canvas.ClientWidth()
 	h := gl.Canvas.ClientHeight()
 
 	e.calculateColors()
-	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.colorBuffer)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glContext.colorBuffer)
 	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(e.colors), gl.STATIC_DRAW)
 
-	gl.UseProgram(e.glProgram.program)
+	gl.UseProgram(e.glContext.program)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.vertexBuffer)
-	gl.VertexAttribPointer(e.glProgram.position, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(e.glProgram.position)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glContext.vertexBuffer)
+	gl.VertexAttribPointer(e.glContext.position, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(e.glContext.position)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, e.glProgram.colorBuffer)
-	gl.VertexAttribPointer(e.glProgram.color, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(e.glProgram.color)
+	gl.BindBuffer(gl.ARRAY_BUFFER, e.glContext.colorBuffer)
+	gl.VertexAttribPointer(e.glContext.color, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(e.glContext.color)
 
 	gl.ClearColor(0, 0, 0, 1)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
@@ -159,13 +159,13 @@ func (e *Chip8WebEmulator) createGlProgram() {
 		panic(err)
 	}
 
-	e.glProgram.program = program
-	e.glProgram.color = e.glProgram.gl.GetAttribLocation(program, "color")
-	e.glProgram.position = e.glProgram.gl.GetAttribLocation(program, "position")
+	e.glContext.program = program
+	e.glContext.color = e.glContext.gl.GetAttribLocation(program, "color")
+	e.glContext.position = e.glContext.gl.GetAttribLocation(program, "position")
 }
 
 func (e *Chip8WebEmulator) initVertexShader(src string) (webgl.Shader, error) {
-	gl := e.glProgram.gl
+	gl := e.glContext.gl
 	s := gl.CreateShader(gl.VERTEX_SHADER)
 	gl.ShaderSource(s, src)
 	gl.CompileShader(s)
@@ -177,7 +177,7 @@ func (e *Chip8WebEmulator) initVertexShader(src string) (webgl.Shader, error) {
 }
 
 func (e *Chip8WebEmulator) initFragmentShader(src string) (webgl.Shader, error) {
-	gl := e.glProgram.gl
+	gl := e.glContext.gl
 	s := gl.CreateShader(gl.FRAGMENT_SHADER)
 	gl.ShaderSource(s, src)
 	gl.CompileShader(s)
@@ -189,7 +189,7 @@ func (e *Chip8WebEmulator) initFragmentShader(src string) (webgl.Shader, error) 
 }
 
 func (e *Chip8WebEmulator) linkShaders(fbVarings []string, shaders ...webgl.Shader) (webgl.Program, error) {
-	gl := e.glProgram.gl
+	gl := e.glContext.gl
 	program := gl.CreateProgram()
 	for _, s := range shaders {
 		gl.AttachShader(program, s)
@@ -205,5 +205,5 @@ func (e *Chip8WebEmulator) linkShaders(fbVarings []string, shaders ...webgl.Shad
 }
 
 func (e *Chip8WebEmulator) SetWebGL(gl *webgl.WebGL) {
-	e.glProgram.gl = gl
+	e.glContext.gl = gl
 }

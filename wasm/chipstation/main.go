@@ -14,8 +14,6 @@ import (
 	"github.com/mrchip53/chip-station/utilities"
 )
 
-type gameState struct{ laserX, laserY, directionX, directionY, laserSize float64 }
-
 var done chan struct{}
 
 var (

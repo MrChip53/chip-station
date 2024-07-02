@@ -86,6 +86,7 @@ func (e *Chip8Emulator) Stop() {
 
 func (e *Chip8Emulator) Loop() {
 	e.start = time.Now()
+DrawLoop:
 	for {
 		if e.abort {
 			break
@@ -109,10 +110,13 @@ func (e *Chip8Emulator) Loop() {
 		}
 		e.drawCount++
 		for i := 0; i < e.ipf; i++ {
-			if e.abort || e.draw {
+			opcode, ok := e.cycle()
+			if !ok {
+				break DrawLoop
+			}
+			if opcode&0xF000 == 0xD000 {
 				break
 			}
-			e.cycle()
 		}
 		e.draw = false
 		if e.delayTimer > 0 {
@@ -137,10 +141,11 @@ func (e *Chip8Emulator) GetRomSize() int {
 	return e.lastRomSize
 }
 
-func (e *Chip8Emulator) cycle() {
+func (e *Chip8Emulator) cycle() (uint16, bool) {
 	opcode := e.fetch()
-	e.decode(opcode)
+	abort := e.decode(opcode)
 	e.cycleCount++
+	return opcode, !abort
 }
 
 func (e *Chip8Emulator) fetch() uint16 {
@@ -150,7 +155,7 @@ func (e *Chip8Emulator) fetch() uint16 {
 	return b1<<8 | b2
 }
 
-func (e *Chip8Emulator) decode(opcode uint16) {
+func (e *Chip8Emulator) decode(opcode uint16) bool {
 	op := opcode & 0xF000 >> 12
 	x := (opcode & 0x0F00) >> 8
 	y := (opcode & 0x00F0) >> 4
@@ -158,7 +163,7 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 	nn := opcode & 0x00FF
 	nnn := opcode & 0x0FFF
 
-	e.abort = e.hooks.Decode != nil && e.hooks.Decode(e.pc-2, opcode, e.drawCount)
+	abort := e.hooks.Decode != nil && e.hooks.Decode(e.pc-2, opcode, e.drawCount)
 
 	if op == 0x0 {
 		if opcode == 0x00E0 {
@@ -169,7 +174,7 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 			log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
 			panic("not implemented")
 		}
-		return
+		return abort
 	}
 
 	switch op {
@@ -323,6 +328,7 @@ func (e *Chip8Emulator) decode(opcode uint16) {
 		log.Printf("op: %x, x: %x, y: %x, n: %x, nn: %x, nnn: %x, cycle: %d\n", op, x, y, n, nn, nnn, e.cycleCount)
 		panic("opcode not implemented")
 	}
+	return abort
 }
 
 func (e *Chip8Emulator) execute(opcode uint16) {
