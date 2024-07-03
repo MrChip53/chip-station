@@ -42,7 +42,7 @@ type Chip8Emulator struct {
 	display    [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
 	stack      *utilities.Stack
 	soundTimer *SoundTimer
-	delayTimer uint8
+	delayTimer *DelayTimer
 	hooks      Hooks
 	draw       bool
 	fps        *FpsCounter
@@ -66,6 +66,7 @@ type Chip8Emulator struct {
 
 func NewChip8Emulator() *Chip8Emulator {
 	e := &Chip8Emulator{
+		delayTimer:  NewDelayTimer(),
 		fps:         NewFpsCounter(),
 		keyState:    NewKeyState(),
 		soundTimer:  NewSoundTimer(),
@@ -93,7 +94,7 @@ func (e *Chip8Emulator) reset() {
 	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
 	e.stack = utilities.NewStack(16)
 	e.soundTimer.Reset()
-	e.delayTimer = 0
+	e.delayTimer.Reset()
 	e.keyState.Reset()
 	e.pc = ROM_START_ADDRESS
 	e.i = 0
@@ -142,12 +143,12 @@ DrawLoop:
 			}
 		}
 		e.draw = false
-		if e.delayTimer > 0 {
-			e.delayTimer--
-		}
+
+		e.delayTimer.Decrement()
 		e.soundTimer.Decrement(e.hooks.StopSound)
 		e.keyState.ResetLastKeyReleased()
 		e.fps.Inc()
+
 		elapsed := time.Since(start)
 		time.Sleep(time.Second/60 - elapsed)
 	}
@@ -353,9 +354,9 @@ func (e *Chip8Emulator) decode(opcode uint16) bool {
 	case 0xF:
 		switch nn {
 		case 0x07:
-			e.v[x] = e.delayTimer
+			e.v[x] = e.delayTimer.GetTimer()
 		case 0x15:
-			e.delayTimer = e.v[x]
+			e.delayTimer.SetTimer(e.v[x])
 		case 0x18:
 			e.soundTimer.SetTimer(e.v[x], e.hooks.PlaySound)
 		case 0x1E:
