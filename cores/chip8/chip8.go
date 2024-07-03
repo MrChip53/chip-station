@@ -38,21 +38,22 @@ type Hooks struct {
 }
 
 type Chip8Emulator struct {
-	memory     [MEMORY_SIZE]byte
-	display    [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
+	memory [MEMORY_SIZE]byte
+
+	display [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
+	draw    bool
+
 	stack      *utilities.Stack
 	soundTimer *SoundTimer
 	delayTimer *DelayTimer
 	hooks      Hooks
-	draw       bool
 	fps        *FpsCounter
 	keyState   *KeyState
 
 	messageChan chan Message
 	resumeChan  chan struct{}
 
-	cycleCount uint64
-	ipf        int
+	ipf int
 
 	pc uint16
 	i  uint16
@@ -60,8 +61,9 @@ type Chip8Emulator struct {
 
 	lastRomSize int
 
-	drawCount uint64
-	paused    bool
+	cycleCount uint64
+	drawCount  uint64
+	paused     bool
 }
 
 func NewChip8Emulator() *Chip8Emulator {

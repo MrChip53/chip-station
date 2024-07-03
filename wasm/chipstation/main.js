@@ -144,7 +144,7 @@ function attachKeyListeners() {
     const key = event.key;
     const keyName = keyMap[key];
     if (keyName) {
-      setKeyState(keyName, 1);
+      emulator.setKeyState(keyName, 1);
     }
   };
 
@@ -152,7 +152,7 @@ function attachKeyListeners() {
     const key = event.key;
     const keyName = keyMap[key];
     if (keyName) {
-      setKeyState(keyName, 0);
+      emulator.setKeyState(keyName, 0);
     }
   };
 
@@ -231,11 +231,11 @@ function attachVisibilityListener() {
     if (document.hidden) {
       runningOnHide = !isPaused();
       if (runningOnHide) {
-        pause();
+        emulator.pause();
       }
     } else {
       if (runningOnHide) {
-        resume();
+        emulator.resume();
       }
     }
   };
@@ -275,7 +275,7 @@ function loadRomFromUserText() {
 }
 
 function startRom(rom) {
-  loadRom(rom);
+  emulator.loadRom(rom);
 }
 
 function beepListener() {
@@ -287,7 +287,7 @@ function beepListener() {
 }
 
 function downloadRom() {
-  const rom = getRom();
+  const rom = emulator.getRom();
   const blob = new Blob([rom], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -303,7 +303,7 @@ function changeCycles() {
   if (isNaN(cycles)) {
     return;
   }
-  setIpf(cycles);
+  emulator.setIpf(cycles);
 }
 
 function initRomSelect() {
@@ -318,10 +318,10 @@ function initRomSelect() {
 }
 
 function play_pause() {
-  if (isPaused()) {
-    resume();
+  if (emulator.isPaused()) {
+    emulator.resume();
   } else {
-    pause();
+    emulator.pause();
   }
 }
 
@@ -334,7 +334,7 @@ function setOnColorClick() {
   if (!color.match(/^[0-9a-fA-F]{6}$/)) {
     return;
   }
-  setOnColor(parseInt(color, 16));
+  emulator.setOnColor(parseInt(color, 16));
 }
 
 function setOffColorClick() {
@@ -342,7 +342,7 @@ function setOffColorClick() {
   if (!color.match(/^[0-9a-fA-F]{6}$/)) {
     return;
   }
-  setOffColor(parseInt(color, 16));
+  emulator.setOffColor(parseInt(color, 16));
 }
 
 (async () => {
