@@ -41,7 +41,7 @@ type Chip8Emulator struct {
 	memory     [MEMORY_SIZE]byte
 	display    [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
 	stack      *utilities.Stack
-	soundTimer uint8
+	soundTimer *SoundTimer
 	delayTimer uint8
 	hooks      Hooks
 	draw       bool
@@ -49,8 +49,7 @@ type Chip8Emulator struct {
 	keyState   *KeyState
 
 	messageChan chan Message
-	// Send on this channel to resume the emulator
-	resumeChan chan struct{}
+	resumeChan  chan struct{}
 
 	cycleCount uint64
 	ipf        int
@@ -61,9 +60,7 @@ type Chip8Emulator struct {
 
 	lastRomSize int
 
-	// Testing stuff
 	drawCount uint64
-	abort     bool
 	paused    bool
 }
 
@@ -71,6 +68,7 @@ func NewChip8Emulator() *Chip8Emulator {
 	e := &Chip8Emulator{
 		fps:         NewFpsCounter(),
 		keyState:    NewKeyState(),
+		soundTimer:  NewSoundTimer(),
 		messageChan: make(chan Message, 20),
 	}
 	e.messageChan <- PauseMessage{}
@@ -94,14 +92,13 @@ func (e *Chip8Emulator) reset() {
 	e.hooks.StopSound()
 	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
 	e.stack = utilities.NewStack(16)
-	e.soundTimer = 0
+	e.soundTimer.Reset()
 	e.delayTimer = 0
 	e.keyState.Reset()
 	e.pc = ROM_START_ADDRESS
 	e.i = 0
 	e.v = [NUM_REGISTERS]uint8{}
 	e.paused = false
-	e.abort = false
 	e.fps.Reset()
 }
 
@@ -113,6 +110,7 @@ func (e *Chip8Emulator) Loop() {
 	e.fps.Reset()
 DrawLoop:
 	for {
+		start := time.Now()
 
 	MessageLoop:
 		for i := 0; i < MESSAGES_PER_FRAME; i++ {
@@ -129,12 +127,6 @@ DrawLoop:
 				break MessageLoop
 			}
 		}
-
-		if e.abort {
-			break
-		}
-
-		start := time.Now()
 
 		if e.hooks.Draw != nil {
 			e.hooks.Draw(e.drawCount, e.fps.GetFps())
@@ -153,12 +145,7 @@ DrawLoop:
 		if e.delayTimer > 0 {
 			e.delayTimer--
 		}
-		if e.soundTimer > 0 {
-			e.soundTimer--
-			if e.soundTimer == 0 {
-				e.hooks.StopSound()
-			}
-		}
+		e.soundTimer.Decrement(e.hooks.StopSound)
 		e.keyState.ResetLastKeyReleased()
 		e.fps.Inc()
 		elapsed := time.Since(start)
@@ -200,7 +187,9 @@ func (e *Chip8Emulator) SwapROM(rom []byte) {
 
 func (e *Chip8Emulator) hang() {
 	e.paused = true
-	e.hooks.StopSound()
+	if e.hooks.StopSound != nil {
+		e.hooks.StopSound()
+	}
 	e.fps.Pause()
 	if e.resumeChan != nil {
 		close(e.resumeChan)
@@ -209,9 +198,7 @@ func (e *Chip8Emulator) hang() {
 	select {
 	case <-e.resumeChan:
 		e.paused = false
-		if e.soundTimer > 0 {
-			e.hooks.PlaySound()
-		}
+		e.soundTimer.Resume(e.hooks.PlaySound)
 		e.fps.Resume()
 	}
 }
@@ -370,10 +357,7 @@ func (e *Chip8Emulator) decode(opcode uint16) bool {
 		case 0x15:
 			e.delayTimer = e.v[x]
 		case 0x18:
-			e.soundTimer = e.v[x]
-			if e.soundTimer > 0 {
-				e.hooks.PlaySound()
-			}
+			e.soundTimer.SetTimer(e.v[x], e.hooks.PlaySound)
 		case 0x1E:
 			e.i += uint16(e.v[x])
 		case 0x29:
@@ -427,10 +411,6 @@ func (e *Chip8Emulator) GetDisplay() [SCREEN_WIDTH][SCREEN_HEIGHT]uint8 {
 
 func (e *Chip8Emulator) GetRom() []byte {
 	return e.memory[ROM_START_ADDRESS : ROM_START_ADDRESS+uint16(e.lastRomSize)]
-}
-
-func (e *Chip8Emulator) ScreenshotPNG(filename string) {
-	utilities.SavePNG(e.display, filename)
 }
 
 func (e *Chip8Emulator) SetMemory(address uint16, data []byte) {
