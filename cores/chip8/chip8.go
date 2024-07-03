@@ -38,16 +38,15 @@ type Hooks struct {
 }
 
 type Chip8Emulator struct {
-	memory          [MEMORY_SIZE]byte
-	display         [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
-	stack           *utilities.Stack
-	soundTimer      uint8
-	delayTimer      uint8
-	keyState        [NUM_KEYS]uint8
-	lastKeyReleased uint8
-	hooks           Hooks
-	draw            bool
-	fps             *FpsCounter
+	memory     [MEMORY_SIZE]byte
+	display    [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
+	stack      *utilities.Stack
+	soundTimer uint8
+	delayTimer uint8
+	hooks      Hooks
+	draw       bool
+	fps        *FpsCounter
+	keyState   *KeyState
 
 	messageChan chan Message
 	// Send on this channel to resume the emulator
@@ -71,6 +70,7 @@ type Chip8Emulator struct {
 func NewChip8Emulator() *Chip8Emulator {
 	e := &Chip8Emulator{
 		fps:         NewFpsCounter(),
+		keyState:    NewKeyState(),
 		messageChan: make(chan Message, 20),
 	}
 	e.messageChan <- PauseMessage{}
@@ -82,7 +82,7 @@ func (e *Chip8Emulator) Initialize(hooks Hooks) {
 	copy(e.memory[:], defaultFont)
 	e.stack = utilities.NewStack(16)
 	e.hooks = hooks
-	e.lastKeyReleased = 0xFF
+	e.keyState.ResetLastKeyReleased()
 	e.ipf = IPF
 }
 
@@ -96,8 +96,7 @@ func (e *Chip8Emulator) reset() {
 	e.stack = utilities.NewStack(16)
 	e.soundTimer = 0
 	e.delayTimer = 0
-	e.keyState = [NUM_KEYS]uint8{}
-	e.lastKeyReleased = 0xFF
+	e.keyState.Reset()
 	e.pc = ROM_START_ADDRESS
 	e.i = 0
 	e.v = [NUM_REGISTERS]uint8{}
@@ -160,7 +159,7 @@ DrawLoop:
 				e.hooks.StopSound()
 			}
 		}
-		e.lastKeyReleased = 0xFF
+		e.keyState.ResetLastKeyReleased()
 		e.fps.Inc()
 		elapsed := time.Since(start)
 		time.Sleep(time.Second/60 - elapsed)
@@ -353,11 +352,11 @@ func (e *Chip8Emulator) decode(opcode uint16) bool {
 	case 0xE:
 		switch nn {
 		case 0x9E:
-			if e.keyState[e.v[x]] == 1 {
+			if e.keyState.IsKeyPressed(e.v[x]) {
 				e.pc += 2
 			}
 		case 0xA1:
-			if e.keyState[e.v[x]] == 0 {
+			if !e.keyState.IsKeyPressed(e.v[x]) {
 				e.pc += 2
 			}
 		default:
@@ -394,8 +393,9 @@ func (e *Chip8Emulator) decode(opcode uint16) bool {
 				e.i++
 			}
 		case 0x0A:
-			if e.lastKeyReleased < 0xFF {
-				e.v[x] = e.lastKeyReleased
+			lastKey := e.keyState.GetLastKeyReleased()
+			if lastKey < 0xFF {
+				e.v[x] = lastKey
 			} else {
 				e.pc -= 2
 			}
@@ -438,10 +438,7 @@ func (e *Chip8Emulator) SetMemory(address uint16, data []byte) {
 }
 
 func (e *Chip8Emulator) SetKeyState(key, state uint8) {
-	e.keyState[key] = state
-	if state == 0 {
-		e.lastKeyReleased = key
-	}
+	e.EnqueueMessage(KeyStateMessage{key: key, state: state == 1})
 }
 
 func (e *Chip8Emulator) SetIPF(ipf int) {

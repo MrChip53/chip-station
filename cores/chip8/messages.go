@@ -57,3 +57,13 @@ type SetMemoryMessage struct {
 func (m SetMemoryMessage) HandleMessage(e *Chip8Emulator) {
 	copy(e.memory[m.address:], m.data)
 }
+
+type KeyStateMessage struct {
+	BaseMessage
+	key   uint8
+	state bool
+}
+
+func (m KeyStateMessage) HandleMessage(e *Chip8Emulator) {
+	e.keyState.SetKeyState(m.key, m.state)
+}
