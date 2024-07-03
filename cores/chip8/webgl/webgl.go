@@ -232,9 +232,9 @@ func (e *Chip8WebEmulator) SetWebGL(gl *webgl.WebGL) {
 }
 
 func (e *Chip8WebEmulator) SetOffColor(c Color) {
-	e.offColor = c
+	e.EnqueueMessage(ChangeColorMessage{color: c, off: true})
 }
 
 func (e *Chip8WebEmulator) SetOnColor(c Color) {
-	e.onColor = c
+	e.EnqueueMessage(ChangeColorMessage{color: c, off: false})
 }

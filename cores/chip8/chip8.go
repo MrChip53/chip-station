@@ -8,35 +8,33 @@ import (
 	"github.com/mrchip53/chip-station/utilities"
 )
 
-/**
- * NOTES:
- * Run at ~700 IPS
- */
-
 const (
-	ROM_START_ADDRESS = 0x200
-	MEMORY_SIZE       = 4096
-	SCREEN_WIDTH      = 64
-	SCREEN_HEIGHT     = 32
-	NUM_KEYS          = 16
-	NUM_REGISTERS     = 16
-	IPF               = 20
+	ROM_START_ADDRESS  = 0x200
+	MEMORY_SIZE        = 4096
+	SCREEN_WIDTH       = 64
+	SCREEN_HEIGHT      = 32
+	NUM_KEYS           = 16
+	NUM_REGISTERS      = 16
+	IPF                = 20
+	MESSAGES_PER_FRAME = 20
 )
 
 //go:embed font.bin
 var defaultFont []byte
 
 type (
-	DecodeHook func(pc uint16, opcode uint16, drawCount uint64) bool
-	DrawHook   func(drawCount uint64, fps float64)
-	SoundHook  func()
+	DecodeHook        func(pc uint16, opcode uint16, drawCount uint64) bool
+	DrawHook          func(drawCount uint64, fps float64)
+	SoundHook         func()
+	CustomMessageHook func(m Message)
 )
 
 type Hooks struct {
-	Decode    DecodeHook
-	Draw      DrawHook
-	PlaySound SoundHook
-	StopSound SoundHook
+	Decode        DecodeHook
+	Draw          DrawHook
+	PlaySound     SoundHook
+	StopSound     SoundHook
+	CustomMessage CustomMessageHook
 }
 
 type Chip8Emulator struct {
@@ -51,12 +49,9 @@ type Chip8Emulator struct {
 	draw            bool
 	fps             *FpsCounter
 
-	// Send on this channel to pause the emulator
-	pauseChan chan struct{}
+	messageChan chan Message
 	// Send on this channel to resume the emulator
 	resumeChan chan struct{}
-	// Send on this channel to swap roms
-	swapRomChan chan []byte
 
 	cycleCount uint64
 	ipf        int
@@ -76,10 +71,9 @@ type Chip8Emulator struct {
 func NewChip8Emulator() *Chip8Emulator {
 	e := &Chip8Emulator{
 		fps:         NewFpsCounter(),
-		pauseChan:   make(chan struct{}, 1),
-		swapRomChan: make(chan []byte, 1),
+		messageChan: make(chan Message, 20),
 	}
-	e.pauseChan <- struct{}{}
+	e.messageChan <- PauseMessage{}
 	return e
 }
 
@@ -120,21 +114,25 @@ func (e *Chip8Emulator) Loop() {
 	e.fps.Reset()
 DrawLoop:
 	for {
+
+	MessageLoop:
+		for i := 0; i < MESSAGES_PER_FRAME; i++ {
+			select {
+			case m := <-e.messageChan:
+				if !m.IsCustom() {
+					m.HandleMessage(e)
+				} else {
+					if e.hooks.CustomMessage != nil {
+						e.hooks.CustomMessage(m)
+					}
+				}
+			default:
+				break MessageLoop
+			}
+		}
+
 		if e.abort {
 			break
-		}
-
-		select {
-		case <-e.pauseChan:
-			e.hang()
-		default:
-		}
-
-		select {
-		case rom := <-e.swapRomChan:
-			e.loadRom(rom)
-			e.reset()
-		default:
 		}
 
 		start := time.Now()
@@ -185,8 +183,12 @@ func (e *Chip8Emulator) GetRomSize() int {
 	return e.lastRomSize
 }
 
+func (e *Chip8Emulator) EnqueueMessage(m Message) {
+	e.messageChan <- m
+}
+
 func (e *Chip8Emulator) Pause() {
-	e.pauseChan <- struct{}{}
+	e.EnqueueMessage(PauseMessage{})
 }
 
 func (e *Chip8Emulator) Resume() {
@@ -194,7 +196,7 @@ func (e *Chip8Emulator) Resume() {
 }
 
 func (e *Chip8Emulator) SwapROM(rom []byte) {
-	e.swapRomChan <- rom
+	e.EnqueueMessage(SwapRomMessage{rom: rom})
 }
 
 func (e *Chip8Emulator) hang() {
@@ -432,7 +434,7 @@ func (e *Chip8Emulator) ScreenshotPNG(filename string) {
 }
 
 func (e *Chip8Emulator) SetMemory(address uint16, data []byte) {
-	copy(e.memory[address:], data)
+	e.EnqueueMessage(SetMemoryMessage{address: address, data: data})
 }
 
 func (e *Chip8Emulator) SetKeyState(key, state uint8) {
@@ -443,5 +445,5 @@ func (e *Chip8Emulator) SetKeyState(key, state uint8) {
 }
 
 func (e *Chip8Emulator) SetIPF(ipf int) {
-	e.ipf = ipf
+	e.EnqueueMessage(IpfMessage{ipf: ipf})
 }

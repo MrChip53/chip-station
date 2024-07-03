@@ -157,6 +157,12 @@ func runGameLoop() {
 		StopSound: func() {
 			e.StopBeep()
 		},
+		CustomMessage: func(m chip8.Message) {
+			switch m := m.(type) {
+			case chip8web.Message:
+				m.Handle(e)
+			}
+		},
 	})
 	// e.SetMemory(0x1ff, []byte{1})
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(csRom)))
