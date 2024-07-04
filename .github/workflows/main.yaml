@@ -17,21 +17,11 @@ jobs:
       - name: Build ChipStation
         run: |
           go mod tidy
-          GOOS=js GOARCH=wasm go build -o main.wasm ./wasm/chipstation
-      - name: Copy dist files
-        run: |
-          mkdir ./dist
-          cp main.wasm ./dist
-          cp ./wasm/chipstation/wasm_exec.js ./dist
-          cp ./wasm/chipstation/main.js ./dist
-          cp ./wasm/chipstation/index.html ./dist
-          cp ./wasm/chipstation/beep.ogg ./dist
-          mkdir ./dist/roms
-          cp ./wasm/chipstation/roms/* ./dist/roms
+          GOOS=js GOARCH=wasm go build -o ./app/main.wasm ./wasm/chipstation
       - name: Sync Files
         uses: SamKirkland/FTP-Deploy-Action@4.1.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/
+          local-dir: ./app/
