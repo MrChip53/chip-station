@@ -12,7 +12,7 @@ func NewFpsCounter() *FpsCounter {
 	return &FpsCounter{}
 }
 
-func (f *FpsCounter) Inc() {
+func (f *FpsCounter) Increment() {
 	f.frameCount++
 }
 
