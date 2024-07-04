@@ -229,7 +229,7 @@ function attachVisibilityListener() {
 
   const visibilityChangeListener = () => {
     if (document.hidden) {
-      runningOnHide = !isPaused();
+      runningOnHide = !emulator.isPaused();
       if (runningOnHide) {
         emulator.pause();
       }
