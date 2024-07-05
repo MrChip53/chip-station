@@ -42,6 +42,9 @@ var instructions = map[uint16]Instruction{
 }
 
 func getOpKey(opcode uint16) uint16 {
+	if opcode < 0x1000 {
+		return opcode
+	}
 	op := opcode & 0xF000
 	if op == 0x8000 {
 		return opcode & 0xF00F
