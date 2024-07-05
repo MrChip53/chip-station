@@ -59,9 +59,9 @@ type Chip8WebEmulator struct {
 	beep      *Beep
 }
 
-func NewChip8WebEmulator(gl *webgl.WebGL) *Chip8WebEmulator {
+func NewChip8WebEmulator(gl *webgl.WebGL, hooks chip8.Hooks) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
-		Chip8Emulator: *chip8.NewChip8Emulator(),
+		Chip8Emulator: *chip8.NewChip8Emulator(hooks),
 		colors:        make([]float32, 64*32*3*2*3),
 		onColor:       NewColor(0xF2CE03),
 		offColor:      NewColor(0x8E6903),

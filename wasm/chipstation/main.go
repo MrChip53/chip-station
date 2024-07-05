@@ -5,6 +5,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"log"
 	"syscall/js"
 	"time"
 
@@ -18,13 +19,14 @@ import (
 var done chan struct{}
 
 var (
-	gl          *webgl.WebGL
-	opcodeSpan  js.Value
-	pcSpan      js.Value
-	fpsSpan     js.Value
-	romSizeSpan js.Value
-	width       float64
-	height      float64
+	gl            *webgl.WebGL
+	opcodeSpan    js.Value
+	pcSpan        js.Value
+	fpsSpan       js.Value
+	romSizeSpan   js.Value
+	cycleFunction js.Func
+	width         float64
+	height        float64
 )
 
 var e *chip8web.Chip8WebEmulator
@@ -43,6 +45,17 @@ var csRom = []byte{
 	0x00, 0x00, 0x00, 0xFC, 0xFC, 0xCC, 0xCC, 0xCC, 0xCC,
 }
 
+func cycle(this js.Value, p []js.Value) interface{} {
+	ok := e.Cycle()
+	if !ok {
+		log.Printf("told to stop")
+		return nil
+	}
+
+	js.Global().Call("requestAnimationFrame", cycleFunction)
+	return nil
+}
+
 func main() {
 	var err error
 
@@ -52,7 +65,32 @@ func main() {
 		panic(err)
 	}
 
-	e = chip8web.NewChip8WebEmulator(gl)
+	e = chip8web.NewChip8WebEmulator(gl, chip8.Hooks{
+		Decode: func(pc uint16, opcode uint16, drawCount uint64) bool {
+			opcodeSpan.Set("innerText", utilities.Hex(opcode))
+			pcSpan.Set("innerText", utilities.Hex(pc))
+			return false
+		},
+		Draw: func(drawCount uint64, fps float64) {
+			fpsSpan.Set("innerText", fmt.Sprintf("%.2f", fps))
+			e.Draw()
+		},
+		PlaySound: func() {
+			e.PlayBeep()
+		},
+		StopSound: func() {
+			e.StopBeep()
+		},
+		CustomMessage: func(m chip8.Message) {
+			switch m := m.(type) {
+			case chip8web.Message:
+				m.Handle(e)
+			}
+		},
+	})
+
+	cycleFunction = js.FuncOf(cycle)
+
 	go runGameLoop()
 
 	emulatorObj := js.Global().Get("Object").New()
@@ -132,29 +170,6 @@ func loadRom(this js.Value, p []js.Value) interface{} {
 }
 
 func runGameLoop() {
-	e.Initialize(chip8.Hooks{
-		Decode: func(pc uint16, opcode uint16, drawCount uint64) bool {
-			opcodeSpan.Set("innerText", utilities.Hex(opcode))
-			pcSpan.Set("innerText", utilities.Hex(pc))
-			return false
-		},
-		Draw: func(drawCount uint64, fps float64) {
-			fpsSpan.Set("innerText", fmt.Sprintf("%.2f", fps))
-			e.Draw()
-		},
-		PlaySound: func() {
-			e.PlayBeep()
-		},
-		StopSound: func() {
-			e.StopBeep()
-		},
-		CustomMessage: func(m chip8.Message) {
-			switch m := m.(type) {
-			case chip8web.Message:
-				m.Handle(e)
-			}
-		},
-	})
 	// e.SetMemory(0x1ff, []byte{1})
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(csRom)))
 	e.SwapROM(csRom)
@@ -162,5 +177,5 @@ func runGameLoop() {
 		time.Sleep(100 * time.Millisecond)
 		e.Resume()
 	}()
-	e.Loop()
+	js.Global().Call("requestAnimationFrame", cycleFunction)
 }

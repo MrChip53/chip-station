@@ -51,7 +51,6 @@ type Chip8Emulator struct {
 	keyState   *KeyState
 
 	messageChan chan Message
-	resumeChan  chan struct{}
 
 	ipf int
 
@@ -66,25 +65,21 @@ type Chip8Emulator struct {
 	paused     bool
 }
 
-func NewChip8Emulator() *Chip8Emulator {
+func NewChip8Emulator(hooks Hooks) *Chip8Emulator {
 	e := &Chip8Emulator{
 		delayTimer:  NewDelayTimer(),
 		fps:         NewFpsCounter(),
 		keyState:    NewKeyState(),
 		soundTimer:  NewSoundTimer(),
 		messageChan: make(chan Message, 20),
+		pc:          ROM_START_ADDRESS,
+		stack:       utilities.NewStack(16),
+		ipf:         IPF,
+		hooks:       hooks,
 	}
+	copy(e.memory[:], defaultFont)
 	e.messageChan <- PauseMessage{}
 	return e
-}
-
-func (e *Chip8Emulator) Initialize(hooks Hooks) {
-	e.pc = ROM_START_ADDRESS
-	copy(e.memory[:], defaultFont)
-	e.stack = utilities.NewStack(16)
-	e.hooks = hooks
-	e.keyState.ResetLastKeyReleased()
-	e.ipf = IPF
 }
 
 func (e *Chip8Emulator) Start() {
@@ -107,6 +102,49 @@ func (e *Chip8Emulator) reset() {
 
 func (e *Chip8Emulator) IsPaused() bool {
 	return e.paused
+}
+
+func (e *Chip8Emulator) Cycle() bool {
+	for i := 0; i < MESSAGES_PER_FRAME; i++ {
+		select {
+		case m := <-e.messageChan:
+			if !m.IsCustom() {
+				m.HandleMessage(e)
+			} else {
+				if e.hooks.CustomMessage != nil {
+					e.hooks.CustomMessage(m)
+				}
+			}
+		default:
+			break
+		}
+	}
+
+	if e.paused {
+		return true
+	}
+
+	if e.hooks.Draw != nil {
+		e.hooks.Draw(e.drawCount, e.fps.GetFps())
+	}
+	e.drawCount++
+	for i := 0; i < e.ipf; i++ {
+		opcode, ok := e.cycle()
+		if !ok {
+			return false
+		}
+		if opcode&0xF000 == 0xD000 {
+			break
+		}
+	}
+	e.draw = false
+
+	e.delayTimer.Decrement()
+	e.soundTimer.Decrement(e.hooks.StopSound)
+	e.keyState.ResetLastKeyReleased()
+	e.fps.Increment()
+
+	return true
 }
 
 func (e *Chip8Emulator) Loop() {
@@ -181,29 +219,25 @@ func (e *Chip8Emulator) Pause() {
 }
 
 func (e *Chip8Emulator) Resume() {
-	e.resumeChan <- struct{}{}
+	e.EnqueueMessage(ResumeMessage{})
 }
 
 func (e *Chip8Emulator) SwapROM(rom []byte) {
 	e.EnqueueMessage(SwapRomMessage{rom: rom})
 }
 
-func (e *Chip8Emulator) hang() {
+func (e *Chip8Emulator) pause() {
 	e.paused = true
 	if e.hooks.StopSound != nil {
 		e.hooks.StopSound()
 	}
 	e.fps.Pause()
-	if e.resumeChan != nil {
-		close(e.resumeChan)
-	}
-	e.resumeChan = make(chan struct{})
-	select {
-	case <-e.resumeChan:
-		e.paused = false
-		e.soundTimer.Resume(e.hooks.PlaySound)
-		e.fps.Resume()
-	}
+}
+
+func (e *Chip8Emulator) resume() {
+	e.paused = false
+	e.soundTimer.Resume(e.hooks.PlaySound)
+	e.fps.Resume()
 }
 
 func (e *Chip8Emulator) cycle() (uint16, bool) {

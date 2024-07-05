@@ -26,7 +26,15 @@ type PauseMessage struct {
 }
 
 func (m PauseMessage) HandleMessage(e *Chip8Emulator) {
-	e.hang()
+	e.pause()
+}
+
+type ResumeMessage struct {
+	BaseMessage
+}
+
+func (m ResumeMessage) HandleMessage(e *Chip8Emulator) {
+	e.resume()
 }
 
 type SwapRomMessage struct {

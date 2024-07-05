@@ -6,7 +6,9 @@ type KeyState struct {
 }
 
 func NewKeyState() *KeyState {
-	return &KeyState{}
+	return &KeyState{
+		lastKeyReleased: 0xFF,
+	}
 }
 
 func (k *KeyState) IsKeyPressed(key uint8) bool {
