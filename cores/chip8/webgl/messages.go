@@ -16,8 +16,8 @@ type ChangeColorMessage struct {
 
 func (m ChangeColorMessage) Handle(e *Chip8WebEmulator) {
 	if m.off {
-		e.offColor = m.color
+		e.glContext.offColor = m.color
 	} else {
-		e.onColor = m.color
+		e.glContext.onColor = m.color
 	}
 }

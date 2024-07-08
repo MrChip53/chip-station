@@ -170,7 +170,6 @@ func loadRom(this js.Value, p []js.Value) interface{} {
 }
 
 func runGameLoop() {
-	// e.SetMemory(0x1ff, []byte{1})
 	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(csRom)))
 	e.SwapROM(csRom)
 	go func() {
