@@ -12,10 +12,12 @@ import (
 
 const (
 	CHARS_PER_ROW = float32(32)
-	CHAR_SIZE     = float32(8)
+	CHAR_SIZE     = float32(64)
 	SHEET_HEIGHT  = CHAR_SIZE * 3
 	SHEET_WIDTH   = CHAR_SIZE * CHARS_PER_ROW
-	SCALE         = float32(5)
+	PAD_SIZE      = float32(0)
+	H_PAD         = PAD_SIZE / SHEET_WIDTH
+	V_PAD         = PAD_SIZE / SHEET_HEIGHT
 )
 
 var vTextShader = `
@@ -97,12 +99,13 @@ func (c *UiContext) Draw(e *Chip8WebEmulator) {
 		return
 	}
 	h := e.glContext.gl.Canvas.ClientHeight()
-	textHeight := 8.0 / float32(h) * SCALE
+	textHeight := CHAR_SIZE / float32(h)
 
 	c.RenderText("ChipStation CHIP-8 Emulator - Press 'u' to toggle the UI", -1, 1)
 	c.RenderText(fmt.Sprintf("FPS: %.2f", e.GetFps()), -1, 1-textHeight)
 	c.RenderText(fmt.Sprintf("PC: 0x%04X", e.GetPc()), -1, 1-textHeight*2)
 	c.RenderText(fmt.Sprintf("Opcode: 0x%04X", e.GetOpCode()), -1, 1-textHeight*3)
+	c.RenderText(fmt.Sprintf("IPF: %d cycles/frame", e.GetIPF()), -1, 1-textHeight*4)
 }
 
 func (c *UiContext) RenderText(text string, x, y float32) {
@@ -113,18 +116,21 @@ func (c *UiContext) RenderText(text string, x, y float32) {
 	vertices := []float32{}
 	texCoords := []float32{}
 
-	w := (8.0 / float32(c.gl.Canvas.ClientWidth())) * SCALE
-	h := (8.0 / float32(c.gl.Canvas.ClientHeight())) * SCALE
+	w := (CHAR_SIZE / float32(c.gl.Canvas.ClientWidth()))
+	h := (CHAR_SIZE / float32(c.gl.Canvas.ClientHeight()))
 
 	for i, char := range text {
 		char := int(char)
-		tx := x + float32(i)*w
+		tx := (x + float32(i)*w) - (w/2.5)*float32(i)
 		ty := y
 		coords := c.getTextureCoordinates(char)
 		vertices = append(vertices,
 			tx, ty,
 			tx, ty-h,
 			tx+w, ty,
+
+			tx+w, ty,
+			tx, ty-h,
 			tx+w, ty-h)
 		texCoords = append(texCoords, coords...)
 	}
@@ -149,7 +155,7 @@ func (c *UiContext) RenderText(text string, x, y float32) {
 	c.gl.BindTexture(c.gl.TEXTURE_2D, c.texture)
 	c.gl.Uniform1i(c.textureUniform, 0)
 
-	c.gl.DrawArrays(c.gl.TRIANGLE_STRIP, 0, len(vertices)/2)
+	c.gl.DrawArrays(c.gl.TRIANGLES, 0, len(vertices)/2)
 }
 
 func (c *UiContext) getTextureCoordinates(charCode int) []float32 {
@@ -160,11 +166,16 @@ func (c *UiContext) getTextureCoordinates(charCode int) []float32 {
 	v := row * CHAR_SIZE / SHEET_HEIGHT
 	w := CHAR_SIZE / SHEET_WIDTH
 	h := CHAR_SIZE / SHEET_HEIGHT
+	hPad := float32(0.25 / SHEET_WIDTH)
+	vPad := float32(0.25 / SHEET_HEIGHT)
 	return []float32{
-		u, v,
-		u, v + h,
-		u + w, v,
-		u + w, v + h,
+		u + hPad, v + vPad,
+		u + hPad, v - vPad + h,
+		u - hPad + w, v + vPad,
+
+		u - hPad + w, v + vPad,
+		u + hPad, v - vPad + h,
+		u - hPad + w, v - vPad + h,
 	}
 }
 

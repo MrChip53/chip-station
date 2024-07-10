@@ -303,6 +303,10 @@ func (e *Chip8Emulator) SetIPF(ipf int) {
 	e.EnqueueMessage(IpfMessage{ipf: ipf})
 }
 
+func (e *Chip8Emulator) GetIPF() int {
+	return e.ipf
+}
+
 func (e *Chip8Emulator) GetFps() float64 {
 	return e.fps.GetFps()
 }
