@@ -4,7 +4,6 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"log"
 	"syscall/js"
 	"time"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/mrchip53/chip-station/cores/chip8"
 	"github.com/mrchip53/chip-station/cores/chip8/webgl"
-	"github.com/mrchip53/chip-station/utilities"
 )
 
 var done chan struct{}
@@ -66,13 +64,7 @@ func main() {
 	}
 
 	e = chip8web.NewChip8WebEmulator(gl, chip8.Hooks{
-		Decode: func(pc uint16, opcode uint16, drawCount uint64) bool {
-			opcodeSpan.Set("innerText", utilities.Hex(opcode))
-			pcSpan.Set("innerText", utilities.Hex(pc))
-			return false
-		},
-		Draw: func(drawCount uint64, fps float64) {
-			fpsSpan.Set("innerText", fmt.Sprintf("%.2f", fps))
+		Draw: func() {
 			e.Draw()
 		},
 		PlaySound: func() {
@@ -105,11 +97,6 @@ func main() {
 	emulatorObj.Set("setOffColor", js.FuncOf(setOffColor))
 	emulatorObj.Set("toggleUi", js.FuncOf(toggleUi))
 	js.Global().Set("emulator", emulatorObj)
-
-	opcodeSpan = js.Global().Get("document").Call("getElementById", "opcode")
-	pcSpan = js.Global().Get("document").Call("getElementById", "pc")
-	fpsSpan = js.Global().Get("document").Call("getElementById", "fps")
-	romSizeSpan = js.Global().Get("document").Call("getElementById", "romSize")
 
 	<-done
 }
@@ -171,12 +158,10 @@ func loadRom(this js.Value, p []js.Value) interface{} {
 	rom := make([]byte, length)
 	js.CopyBytesToGo(rom, romBytes)
 	e.SwapROM([]byte(rom))
-	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", length))
 	return nil
 }
 
 func runGameLoop() {
-	romSizeSpan.Set("innerText", fmt.Sprintf("%d bytes", len(csRom)))
 	e.SwapROM(csRom)
 	go func() {
 		time.Sleep(100 * time.Millisecond)

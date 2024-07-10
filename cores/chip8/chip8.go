@@ -24,7 +24,7 @@ var defaultFont []byte
 
 type (
 	DecodeHook        func(pc uint16, opcode uint16, drawCount uint64) bool
-	DrawHook          func(drawCount uint64, fps float64)
+	DrawHook          func()
 	SoundHook         func()
 	CustomMessageHook func(m Message)
 )
@@ -125,7 +125,7 @@ func (e *Chip8Emulator) Cycle() bool {
 	}
 
 	if e.hooks.Draw != nil {
-		e.hooks.Draw(e.drawCount, e.fps.GetFps())
+		e.hooks.Draw()
 	}
 	e.drawCount++
 	for i := 0; i < e.ipf; i++ {
@@ -170,7 +170,7 @@ DrawLoop:
 		}
 
 		if e.hooks.Draw != nil {
-			e.hooks.Draw(e.drawCount, e.fps.GetFps())
+			e.hooks.Draw()
 		}
 		e.drawCount++
 		for i := 0; i < e.ipf; i++ {

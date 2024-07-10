@@ -106,6 +106,7 @@ func (c *UiContext) Draw(e *Chip8WebEmulator) {
 	c.RenderText(fmt.Sprintf("PC: 0x%04X", e.GetPc()), -1, 1-textHeight*2)
 	c.RenderText(fmt.Sprintf("Opcode: 0x%04X", e.GetOpCode()), -1, 1-textHeight*3)
 	c.RenderText(fmt.Sprintf("IPF: %d cycles/frame", e.GetIPF()), -1, 1-textHeight*4)
+	c.RenderText(fmt.Sprintf("ROM Size: %d bytes", e.GetRomSize()), -1, 1-textHeight*5)
 }
 
 func (c *UiContext) RenderText(text string, x, y float32) {
