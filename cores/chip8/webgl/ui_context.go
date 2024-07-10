@@ -41,7 +41,7 @@ void main() {
     if (color.a > 0.0) {
         gl_FragColor = color;
     } else {
-        gl_FragColor = vec4(color.rgb, 0.5);
+        discard;
     }
 }`
 
@@ -78,7 +78,7 @@ func NewUiContext(gl *webgl.WebGL) *UiContext {
 		ui.gl.TexImage2D(ui.gl.TEXTURE_2D, 0, ui.gl.RGBA, ui.gl.RGBA, ui.gl.UNSIGNED_BYTE, img)
 		bare := ui.gl.JS()
 		bare.Call("generateMipmap", bare.Get("TEXTURE_2D"))
-		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_MIN_FILTER, bare.Get("LINEAR_MIPMAP_NEAREST"))
+		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_MIN_FILTER, bare.Get("LINEAR_MIPMAP_LINEAR"))
 		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_MAG_FILTER, ui.gl.LINEAR)
 		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_WRAP_S, ui.gl.CLAMP_TO_EDGE)
 		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_WRAP_T, ui.gl.CLAMP_TO_EDGE)
@@ -86,7 +86,7 @@ func NewUiContext(gl *webgl.WebGL) *UiContext {
 		return nil
 	})
 
-	img.Set("src", "./assets/VT323.png")
+	img.Set("src", "./assets/font.png")
 	img.Set("onload", cbFunc)
 
 	return ui
