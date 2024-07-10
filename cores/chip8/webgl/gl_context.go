@@ -42,8 +42,6 @@ func NewGlContext(gl *webgl.WebGL) *GlContext {
 
 func (c *GlContext) Draw(display [64][32]uint8) {
 	gl := c.gl
-	w := gl.Canvas.ClientWidth()
-	h := gl.Canvas.ClientHeight()
 
 	c.calculateColors(display)
 	gl.BindBuffer(gl.ARRAY_BUFFER, c.colorBuffer)
@@ -59,10 +57,6 @@ func (c *GlContext) Draw(display [64][32]uint8) {
 	gl.VertexAttribPointer(c.color, 3, gl.FLOAT, false, 0, 0)
 	gl.EnableVertexAttribArray(c.color)
 
-	gl.ClearColor(c.offColor.R, c.offColor.G, c.offColor.B, 1)
-	gl.Clear(gl.COLOR_BUFFER_BIT)
-	gl.Enable(gl.DEPTH_TEST)
-	gl.Viewport(0, 0, w, h)
 	gl.DrawArrays(gl.TRIANGLES, 0, c.polygonCount)
 }
 

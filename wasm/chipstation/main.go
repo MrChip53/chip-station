@@ -103,6 +103,7 @@ func main() {
 	emulatorObj.Set("isPaused", js.FuncOf(isPaused))
 	emulatorObj.Set("setOnColor", js.FuncOf(setOnColor))
 	emulatorObj.Set("setOffColor", js.FuncOf(setOffColor))
+	emulatorObj.Set("toggleUi", js.FuncOf(toggleUi))
 	js.Global().Set("emulator", emulatorObj)
 
 	opcodeSpan = js.Global().Get("document").Call("getElementById", "opcode")
@@ -145,6 +146,11 @@ func resume(this js.Value, p []js.Value) interface{} {
 
 func isPaused(this js.Value, p []js.Value) interface{} {
 	return e.IsPaused()
+}
+
+func toggleUi(this js.Value, p []js.Value) interface{} {
+	e.ToggleUi()
+	return nil
 }
 
 func setOnColor(this js.Value, p []js.Value) interface{} {

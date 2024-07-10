@@ -150,6 +150,10 @@ function attachKeyListeners() {
 
   const keyUpListener = (event) => {
     const key = event.key;
+    if (key === 'u') {
+      emulator.toggleUi()
+      return;
+    }
     const keyName = keyMap[key];
     if (keyName) {
       emulator.setKeyState(keyName, 0);

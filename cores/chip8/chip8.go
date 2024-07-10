@@ -302,3 +302,15 @@ func (e *Chip8Emulator) SetKeyState(key, state uint8) {
 func (e *Chip8Emulator) SetIPF(ipf int) {
 	e.EnqueueMessage(IpfMessage{ipf: ipf})
 }
+
+func (e *Chip8Emulator) GetFps() float64 {
+	return e.fps.GetFps()
+}
+
+func (e *Chip8Emulator) GetPc() uint16 {
+	return e.pc
+}
+
+func (e *Chip8Emulator) GetOpCode() uint16 {
+	return uint16(e.memory[e.pc])<<8 | uint16(e.memory[e.pc+1])
+}

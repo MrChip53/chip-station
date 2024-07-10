@@ -37,6 +37,7 @@ type Chip8WebEmulator struct {
 	glContext *GlContext
 	uiContext *UiContext
 	beep      *Beep
+	showUi    bool
 }
 
 func NewChip8WebEmulator(gl *webgl.WebGL, hooks chip8.Hooks) *Chip8WebEmulator {
@@ -44,13 +45,28 @@ func NewChip8WebEmulator(gl *webgl.WebGL, hooks chip8.Hooks) *Chip8WebEmulator {
 		Chip8Emulator: *chip8.NewChip8Emulator(hooks),
 		glContext:     NewGlContext(gl),
 		uiContext:     NewUiContext(gl),
+		showUi:        true,
 	}
 	return e
 }
 
 func (e *Chip8WebEmulator) Draw() {
+	w := e.glContext.gl.Canvas.ClientWidth()
+	h := e.glContext.gl.Canvas.ClientHeight()
+
+	e.glContext.gl.ClearColor(e.glContext.offColor.R, e.glContext.offColor.G, e.glContext.offColor.B, 1)
+	e.glContext.gl.Clear(e.glContext.gl.COLOR_BUFFER_BIT)
+	e.glContext.gl.Enable(e.glContext.gl.DEPTH_TEST)
+	e.glContext.gl.DepthFunc(e.glContext.gl.LEQUAL)
+	e.glContext.gl.Enable(e.glContext.gl.BLEND)
+	e.glContext.gl.BlendFunc(e.glContext.gl.SRC_ALPHA, e.glContext.gl.ONE_MINUS_SRC_ALPHA)
+	e.glContext.gl.Viewport(0, 0, w, h)
+
 	e.glContext.Draw(e.GetDisplay())
-	// e.uiContext.RenderText("Hell", 0, 0)
+
+	if e.showUi {
+		e.uiContext.Draw(e)
+	}
 }
 
 func (e *Chip8WebEmulator) PlayBeep() {
@@ -64,6 +80,10 @@ func (e *Chip8WebEmulator) StopBeep() {
 	if e.beep != nil {
 		e.beep.Stop()
 	}
+}
+
+func (e *Chip8WebEmulator) ToggleUi() {
+	e.EnqueueMessage(ToggleUiMessage{})
 }
 
 func (e *Chip8WebEmulator) SetOffColor(c Color) {

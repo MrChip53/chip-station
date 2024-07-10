@@ -21,3 +21,11 @@ func (m ChangeColorMessage) Handle(e *Chip8WebEmulator) {
 		e.glContext.onColor = m.color
 	}
 }
+
+type ToggleUiMessage struct {
+	chip8.CustomMessage
+}
+
+func (m ToggleUiMessage) Handle(e *Chip8WebEmulator) {
+	e.showUi = !e.showUi
+}

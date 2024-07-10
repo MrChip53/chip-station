@@ -11,28 +11,38 @@ import (
 )
 
 const (
-	CHARS_PER_ROW = 8
-	CHAR_SIZE     = 8
-	SHEET_SIZE    = 64
+	CHARS_PER_ROW = float32(32)
+	CHAR_SIZE     = float32(8)
+	SHEET_HEIGHT  = CHAR_SIZE * 3
+	SHEET_WIDTH   = CHAR_SIZE * CHARS_PER_ROW
+	SCALE         = float32(5)
 )
 
-var vTextShader = `attribute vec2 a_position;
-attribute vec2 a_texCoord;
+var vTextShader = `
+attribute vec2 position;
+attribute vec2 texCoord;
 
-varying vec2 v_texCoord;
+varying vec2 vTexCoord;
 
 void main() {
-    gl_Position = vec4(a_position / vec2(400.0, 300.0) * 2.0 - 1.0, 0.0, 1.0);
-    v_texCoord = a_texCoord;
+    gl_Position = vec4(position, 0.0, 1.0);
+    vTexCoord = texCoord;
 }`
 
-var fTextShader = `precision mediump float;
+var fTextShader = `
+precision mediump float;
 
-uniform sampler2D u_texture;
-varying vec2 v_texCoord;
+uniform sampler2D texture;
+varying vec2 vTexCoord;
+vec4 color;
 
 void main() {
-    gl_FragColor = texture2D(u_texture, v_texCoord);
+    color = texture2D(texture, vTexCoord);
+    if (color.a > 0.0) {
+        gl_FragColor = color;
+    } else {
+        gl_FragColor = vec4(color.rgb, 0.5);
+    }
 }`
 
 type UiContext struct {
@@ -45,6 +55,7 @@ type UiContext struct {
 	texCoordAttrib int
 	positionAttrib int
 	textureUniform webgl.Location
+	loaded         bool
 }
 
 func NewUiContext(gl *webgl.WebGL) *UiContext {
@@ -55,42 +66,68 @@ func NewUiContext(gl *webgl.WebGL) *UiContext {
 		vertexBuffer:   gl.CreateBuffer(),
 	}
 
+	ui.createGlProgram()
+
 	img := js.Global().Get("Image").New()
 
 	var cbFunc js.Func
 	cbFunc = js.FuncOf(func(this js.Value, p []js.Value) interface{} {
 		defer cbFunc.Release()
+		ui.gl.ActiveTexture(ui.gl.TEXTURE0)
 		ui.gl.BindTexture(ui.gl.TEXTURE_2D, ui.texture)
 		ui.gl.TexImage2D(ui.gl.TEXTURE_2D, 0, ui.gl.RGBA, ui.gl.RGBA, ui.gl.UNSIGNED_BYTE, img)
+		bare := ui.gl.JS()
+		bare.Call("generateMipmap", bare.Get("TEXTURE_2D"))
+		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_MIN_FILTER, bare.Get("LINEAR_MIPMAP_NEAREST"))
+		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_MAG_FILTER, ui.gl.LINEAR)
+		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_WRAP_S, ui.gl.CLAMP_TO_EDGE)
+		ui.gl.TexParameteri(ui.gl.TEXTURE_2D, ui.gl.TEXTURE_WRAP_T, ui.gl.CLAMP_TO_EDGE)
+		ui.loaded = true
 		return nil
 	})
 
-	img.Set("src", "http://localhost:8080/app/assets/charmap_black.png")
+	img.Set("src", "./assets/VT323.png")
 	img.Set("onload", cbFunc)
-
-	ui.createGlProgram()
 
 	return ui
 }
 
-func (c *UiContext) Draw() {
-	c.RenderText("Hello, World!", 0, 0)
+func (c *UiContext) Draw(e *Chip8WebEmulator) {
+	if !c.loaded {
+		return
+	}
+	h := e.glContext.gl.Canvas.ClientHeight()
+	textHeight := 8.0 / float32(h) * SCALE
+
+	c.RenderText("ChipStation CHIP-8 Emulator - Press 'u' to toggle the UI", -1, 1)
+	c.RenderText(fmt.Sprintf("FPS: %.2f", e.GetFps()), -1, 1-textHeight)
+	c.RenderText(fmt.Sprintf("PC: 0x%04X", e.GetPc()), -1, 1-textHeight*2)
+	c.RenderText(fmt.Sprintf("Opcode: 0x%04X", e.GetOpCode()), -1, 1-textHeight*3)
 }
 
 func (c *UiContext) RenderText(text string, x, y float32) {
+	if !c.loaded {
+		return
+	}
+
 	vertices := []float32{}
 	texCoords := []float32{}
 
+	w := (8.0 / float32(c.gl.Canvas.ClientWidth())) * SCALE
+	h := (8.0 / float32(c.gl.Canvas.ClientHeight())) * SCALE
+
 	for i, char := range text {
 		char := int(char)
-		tx := x + float32(i)*CHAR_SIZE
+		tx := x + float32(i)*w
 		ty := y
 		coords := c.getTextureCoordinates(char)
-		vertices = append(vertices, tx, ty, tx+CHAR_SIZE, ty, tx+CHAR_SIZE, ty+CHAR_SIZE, tx, ty+CHAR_SIZE)
+		vertices = append(vertices,
+			tx, ty,
+			tx, ty-h,
+			tx+w, ty,
+			tx+w, ty-h)
 		texCoords = append(texCoords, coords...)
 	}
-
-	fmt.Println(vertices)
 
 	c.gl.BindBuffer(c.gl.ARRAY_BUFFER, c.vertexBuffer)
 	c.gl.BufferData(c.gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(vertices), c.gl.STATIC_DRAW)
@@ -99,6 +136,7 @@ func (c *UiContext) RenderText(text string, x, y float32) {
 	c.gl.BufferData(c.gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(texCoords), c.gl.STATIC_DRAW)
 
 	c.gl.UseProgram(c.program)
+
 	c.gl.BindBuffer(c.gl.ARRAY_BUFFER, c.vertexBuffer)
 	c.gl.VertexAttribPointer(c.positionAttrib, 2, c.gl.FLOAT, false, 0, 0)
 	c.gl.EnableVertexAttribArray(c.positionAttrib)
@@ -116,16 +154,17 @@ func (c *UiContext) RenderText(text string, x, y float32) {
 
 func (c *UiContext) getTextureCoordinates(charCode int) []float32 {
 	i := charCode - 32
-	row := charCode / CHARS_PER_ROW
-	col := i % CHARS_PER_ROW
-	x := float32(col * CHAR_SIZE / SHEET_SIZE)
-	y := float32(row * CHAR_SIZE / SHEET_SIZE)
-	size := float32(CHAR_SIZE / SHEET_SIZE)
+	row := float32(i / int(CHARS_PER_ROW))
+	col := float32(i % int(CHARS_PER_ROW))
+	u := col * CHAR_SIZE / SHEET_WIDTH
+	v := row * CHAR_SIZE / SHEET_HEIGHT
+	w := CHAR_SIZE / SHEET_WIDTH
+	h := CHAR_SIZE / SHEET_HEIGHT
 	return []float32{
-		x, y,
-		x + size, y,
-		x + size, y + size,
-		x, y + size,
+		u, v,
+		u, v + h,
+		u + w, v,
+		u + w, v + h,
 	}
 }
 
@@ -146,9 +185,9 @@ func (c *UiContext) createGlProgram() {
 	}
 
 	c.program = program
-	c.positionAttrib = c.gl.GetAttribLocation(program, "a_position")
-	c.texCoordAttrib = c.gl.GetAttribLocation(program, "a_texCoord")
-	c.textureUniform = c.gl.GetUniformLocation(program, "u_texture")
+	c.positionAttrib = c.gl.GetAttribLocation(program, "position")
+	c.texCoordAttrib = c.gl.GetAttribLocation(program, "texCoord")
+	c.textureUniform = c.gl.GetUniformLocation(program, "texture")
 }
 
 func (c *UiContext) initVertexShader(src string) (webgl.Shader, error) {
