@@ -27,5 +27,6 @@ type ToggleUiMessage struct {
 }
 
 func (m ToggleUiMessage) Handle(e *Chip8WebEmulator) {
+	e.ResetFps()
 	e.showUi = !e.showUi
 }

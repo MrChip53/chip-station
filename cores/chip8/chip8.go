@@ -120,14 +120,15 @@ func (e *Chip8Emulator) Cycle() bool {
 		}
 	}
 
-	if e.paused {
-		return true
-	}
-
 	if e.hooks.Draw != nil {
 		e.hooks.Draw()
 	}
 	e.drawCount++
+
+	if e.paused {
+		return true
+	}
+
 	for i := 0; i < e.ipf; i++ {
 		opcode, ok := e.cycle()
 		if !ok {
@@ -317,4 +318,8 @@ func (e *Chip8Emulator) GetPc() uint16 {
 
 func (e *Chip8Emulator) GetOpCode() uint16 {
 	return uint16(e.memory[e.pc])<<8 | uint16(e.memory[e.pc+1])
+}
+
+func (e *Chip8Emulator) ResetFps() {
+	e.fps.Reset()
 }
