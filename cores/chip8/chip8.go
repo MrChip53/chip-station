@@ -27,6 +27,7 @@ type (
 	DrawHook          func()
 	SoundHook         func()
 	CustomMessageHook func(m Message)
+	Display           [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
 )
 
 type Hooks struct {
@@ -40,7 +41,7 @@ type Hooks struct {
 type Chip8Emulator struct {
 	memory [MEMORY_SIZE]byte
 
-	display [SCREEN_WIDTH][SCREEN_HEIGHT]uint8
+	display Display
 	draw    bool
 
 	stack      *utilities.Stack
@@ -88,7 +89,7 @@ func (e *Chip8Emulator) Start() {
 
 func (e *Chip8Emulator) reset() {
 	e.hooks.StopSound()
-	e.display = [SCREEN_WIDTH][SCREEN_HEIGHT]uint8{}
+	e.display = Display{}
 	e.stack = utilities.NewStack(16)
 	e.soundTimer.Reset()
 	e.delayTimer.Reset()
@@ -284,7 +285,7 @@ func (e *Chip8Emulator) clearDisplay() {
 	}
 }
 
-func (e *Chip8Emulator) GetDisplay() [SCREEN_WIDTH][SCREEN_HEIGHT]uint8 {
+func (e *Chip8Emulator) GetDisplay() Display {
 	return e.display
 }
 

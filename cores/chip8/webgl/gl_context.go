@@ -3,64 +3,92 @@
 package chip8web
 
 import (
-	"errors"
 	"fmt"
-	"syscall/js"
 
 	"github.com/seqsense/webgl-go"
+
+	"github.com/mrchip53/chip-station/cores/chip8"
+	"github.com/mrchip53/chip-station/cores/chip8/webgl/programs"
 )
 
 type GlContext struct {
 	gl *webgl.WebGL
 
-	program  webgl.Program
-	color    int
-	position int
+	colors   []float32
+	onColor  Color
+	offColor Color
 
-	vertexBuffer webgl.Buffer
-	colorBuffer  webgl.Buffer
+	fullScreen bool
 
-	polygonCount int
-	colors       []float32
-	onColor      Color
-	offColor     Color
+	glPrograms *programs.Programs
 }
 
 func NewGlContext(gl *webgl.WebGL) *GlContext {
 	context := &GlContext{
-		gl:           gl,
-		vertexBuffer: gl.CreateBuffer(),
-		colorBuffer:  gl.CreateBuffer(),
-		colors:       make([]float32, 64*32*3*2*3),
-		onColor:      NewColor(0xF2CE03),
-		offColor:     NewColor(0x8E6903),
+		gl:         gl,
+		colors:     make([]float32, chip8.SCREEN_WIDTH*chip8.SCREEN_HEIGHT*3*2*3),
+		onColor:    NewColor(0xF2CE03),
+		offColor:   NewColor(0x8E6903),
+		glPrograms: programs.NewPrograms(gl),
 	}
-	context.generateVertices(64, 32)
-	context.createGlProgram()
 	return context
 }
 
-func (c *GlContext) Draw(display [64][32]uint8) {
-	gl := c.gl
+func (c *GlContext) Draw(e *Chip8WebEmulator) {
+	c.calculateColors(e.GetDisplay())
 
-	c.calculateColors(display)
-	gl.BindBuffer(gl.ARRAY_BUFFER, c.colorBuffer)
-	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(c.colors), gl.STATIC_DRAW)
+	scale := float32(1)
+	x := float32(0)
+	y := float32(0)
+	if !c.fullScreen {
+		x = 0.5
+		scale = 0.5
+	}
+	_, _, _ = scale, x, y
+	c.glPrograms.DisplayProgram.Draw(c.gl, c.colors, scale, x, y)
+	if !c.fullScreen {
+		h := c.gl.Canvas.ClientHeight()
+		w := c.gl.Canvas.ClientWidth()
+		// textHeight := programs.CHAR_SIZE / float32(h)
 
-	gl.UseProgram(c.program)
+		c.DrawWindow("ChipStation CHIP-8 Emulator", 0, 0, float32(w)/4.0, float32(h), []string{
+			"Toggle Fullscreen: 'u'",
+			fmt.Sprintf("FPS: %.2f", e.GetFps()),
+			fmt.Sprintf("PC: 0x%04X", e.GetPc()),
+			fmt.Sprintf("Opcode: 0x%04X", e.GetOpCode()),
+			fmt.Sprintf("IPF: %d cycles/frame", e.GetIPF()),
+			fmt.Sprintf("ROM Size: %d bytes", e.GetRomSize()),
+		})
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, c.vertexBuffer)
-	gl.VertexAttribPointer(c.position, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(c.position)
-
-	gl.BindBuffer(gl.ARRAY_BUFFER, c.colorBuffer)
-	gl.VertexAttribPointer(c.color, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(c.color)
-
-	gl.DrawArrays(gl.TRIANGLES, 0, c.polygonCount)
+		// c.glPrograms.TextProgram.Draw(c.gl, "ChipStation CHIP-8 Emulator - Press 'u' to toggle the UI", -1, 1)
+		// c.glPrograms.TextProgram.Draw(c.gl, fmt.Sprintf("FPS: %.2f", e.GetFps()), -1, 1-textHeight, 1)
+		// c.glPrograms.TextProgram.Draw(c.gl, fmt.Sprintf("PC: 0x%04X", e.GetPc()), -1, 1-textHeight*2, 1)
+		// c.glPrograms.TextProgram.Draw(c.gl, fmt.Sprintf("Opcode: 0x%04X", e.GetOpCode()), -1, 1-textHeight*3, 1)
+		// c.glPrograms.TextProgram.Draw(c.gl, fmt.Sprintf("IPF: %d cycles/frame", e.GetIPF()), -1, 1-textHeight*4, 1)
+		// c.glPrograms.TextProgram.Draw(c.gl, fmt.Sprintf("ROM Size: %d bytes", e.GetRomSize()), -1, 1-textHeight*5, 1)
+	}
 }
 
-func (c *GlContext) calculateColors(display [64][32]uint8) {
+func (c *GlContext) DrawWindow(title string, x, y, w, h float32, text []string) {
+	ch := float32(c.gl.Canvas.ClientHeight())
+	cw := float32(c.gl.Canvas.ClientWidth())
+
+	ix := (x + 10 - cw/2) / (cw / 2)
+	iy := (y + 10 - ch/2) / (ch / 2) * -1
+
+	c.glPrograms.WindowProgram.Draw(c.gl, title, x, y, w, h)
+	c.glPrograms.TextProgram.Draw(c.gl, title, ix, iy, 0.8)
+
+	textHeight := programs.CHAR_SIZE / float32(h)
+	iy -= textHeight
+
+	for _, t := range text {
+		c.glPrograms.TextProgram.Draw(c.gl, t, ix, iy, 0.9)
+		iy -= textHeight
+	}
+}
+
+func (c *GlContext) calculateColors(display chip8.Display) {
 	for y := 0; y < 32; y++ {
 		for x := 0; x < 64; x++ {
 			offset := (y*64 + x) * 3 * 2 * 3
@@ -81,85 +109,4 @@ func (c *GlContext) setGeometryColor(offset, verticeCount, geometryCount int, co
 			c.colors[(offset+i*verticeCount*3)+(j*3)+2] = color.B
 		}
 	}
-}
-
-func (c *GlContext) generateVertices(width, height int) {
-	vertices := []float32{}
-
-	for y := 0; y < height; y++ {
-		fy := (height - 1) - y
-		for x := 0; x < width; x++ {
-			vertices = append(vertices, float32(x)/32-1, float32(fy)/16-1, 0)
-			vertices = append(vertices, float32(x+1)/32-1, float32(fy)/16-1, 0)
-			vertices = append(vertices, float32(x)/32-1, float32(fy+1)/16-1, 0)
-			vertices = append(vertices, float32(x+1)/32-1, float32(fy)/16-1, 0)
-			vertices = append(vertices, float32(x+1)/32-1, float32(fy+1)/16-1, 0)
-			vertices = append(vertices, float32(x)/32-1, float32(fy+1)/16-1, 0)
-		}
-	}
-
-	c.gl.BindBuffer(c.gl.ARRAY_BUFFER, c.vertexBuffer)
-	c.gl.BufferData(c.gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(vertices), c.gl.STATIC_DRAW)
-	c.polygonCount = len(vertices) / 3
-}
-
-func (c *GlContext) createGlProgram() {
-	var err error
-	var vs, fs webgl.Shader
-	if vs, err = c.initVertexShader(vsSource); err != nil {
-		panic(err)
-	}
-
-	if fs, err = c.initFragmentShader(fsSource); err != nil {
-		panic(err)
-	}
-
-	program, err := c.linkShaders(nil, vs, fs)
-	if err != nil {
-		panic(err)
-	}
-
-	c.program = program
-	c.color = c.gl.GetAttribLocation(program, "color")
-	c.position = c.gl.GetAttribLocation(program, "position")
-}
-
-func (c *GlContext) initVertexShader(src string) (webgl.Shader, error) {
-	gl := c.gl
-	s := gl.CreateShader(gl.VERTEX_SHADER)
-	gl.ShaderSource(s, src)
-	gl.CompileShader(s)
-	if !gl.GetShaderParameter(s, gl.COMPILE_STATUS).(bool) {
-		compilationLog := gl.GetShaderInfoLog(s)
-		return webgl.Shader(js.Null()), fmt.Errorf("compile failed (VERTEX_SHADER) %v", compilationLog)
-	}
-	return s, nil
-}
-
-func (c *GlContext) initFragmentShader(src string) (webgl.Shader, error) {
-	gl := c.gl
-	s := gl.CreateShader(gl.FRAGMENT_SHADER)
-	gl.ShaderSource(s, src)
-	gl.CompileShader(s)
-	if !gl.GetShaderParameter(s, gl.COMPILE_STATUS).(bool) {
-		compilationLog := gl.GetShaderInfoLog(s)
-		return webgl.Shader(js.Null()), fmt.Errorf("compile failed (FRAGMENT_SHADER) %v", compilationLog)
-	}
-	return s, nil
-}
-
-func (c *GlContext) linkShaders(fbVarings []string, shaders ...webgl.Shader) (webgl.Program, error) {
-	gl := c.gl
-	program := gl.CreateProgram()
-	for _, s := range shaders {
-		gl.AttachShader(program, s)
-	}
-	if len(fbVarings) > 0 {
-		gl.TransformFeedbackVaryings(program, fbVarings, gl.SEPARATE_ATTRIBS)
-	}
-	gl.LinkProgram(program)
-	if !gl.GetProgramParameter(program, gl.LINK_STATUS).(bool) {
-		return webgl.Program(js.Null()), errors.New("link failed: " + gl.GetProgramInfoLog(program))
-	}
-	return program, nil
 }
