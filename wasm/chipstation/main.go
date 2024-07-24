@@ -44,7 +44,7 @@ var csRom = []byte{
 }
 
 func cycle(this js.Value, p []js.Value) interface{} {
-	ok := e.Cycle()
+	ok := e.Cycle(p[0].Float())
 	if !ok {
 		log.Printf("told to stop")
 		return nil

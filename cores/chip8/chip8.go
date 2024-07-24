@@ -105,7 +105,7 @@ func (e *Chip8Emulator) IsPaused() bool {
 	return e.paused
 }
 
-func (e *Chip8Emulator) Cycle() bool {
+func (e *Chip8Emulator) Cycle(now float64) bool {
 	for i := 0; i < MESSAGES_PER_FRAME; i++ {
 		select {
 		case m := <-e.messageChan:
@@ -144,13 +144,12 @@ func (e *Chip8Emulator) Cycle() bool {
 	e.delayTimer.Decrement()
 	e.soundTimer.Decrement(e.hooks.StopSound)
 	e.keyState.ResetLastKeyReleased()
-	e.fps.Increment()
+	e.fps.UpdateFps(now)
 
 	return true
 }
 
 func (e *Chip8Emulator) Loop() {
-	e.fps.Reset()
 DrawLoop:
 	for {
 		start := time.Now()
@@ -189,7 +188,6 @@ DrawLoop:
 		e.delayTimer.Decrement()
 		e.soundTimer.Decrement(e.hooks.StopSound)
 		e.keyState.ResetLastKeyReleased()
-		e.fps.Increment()
 
 		elapsed := time.Since(start)
 		time.Sleep(time.Second/60 - elapsed)
@@ -233,13 +231,11 @@ func (e *Chip8Emulator) pause() {
 	if e.hooks.StopSound != nil {
 		e.hooks.StopSound()
 	}
-	e.fps.Pause()
 }
 
 func (e *Chip8Emulator) resume() {
 	e.paused = false
 	e.soundTimer.Resume(e.hooks.PlaySound)
-	e.fps.Resume()
 }
 
 func (e *Chip8Emulator) cycle() (uint16, bool) {

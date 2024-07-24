@@ -1,36 +1,26 @@
 package chip8
 
-import "time"
-
 type FpsCounter struct {
-	frameCount   uint64
-	lastTime     time.Time
-	savedElapsed float64
+	fps  float64
+	last float64
 }
 
 func NewFpsCounter() *FpsCounter {
 	return &FpsCounter{}
 }
 
-func (f *FpsCounter) Increment() {
-	f.frameCount++
+func (f *FpsCounter) UpdateFps(now float64) {
+	now *= 0.001
+	d := now - f.last
+	f.last = now
+	f.fps = 1 / d
 }
 
 func (f *FpsCounter) Reset() {
-	f.frameCount = 0
-	f.lastTime = time.Now()
-	f.savedElapsed = 0
-}
-
-func (e *FpsCounter) Pause() {
-	e.savedElapsed = e.savedElapsed + time.Since(e.lastTime).Seconds()
-}
-
-func (e *FpsCounter) Resume() {
-	e.lastTime = time.Now()
+	f.fps = 0
+	f.last = 0
 }
 
 func (f *FpsCounter) GetFps() float64 {
-	elapsed := time.Since(f.lastTime).Seconds()
-	return float64(f.frameCount) / (elapsed + f.savedElapsed)
+	return f.fps
 }
