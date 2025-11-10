@@ -11,16 +11,21 @@ import (
 type Chip8WebEmulator struct {
 	chip8.Chip8Emulator
 
+	beepSource string
+	fontSource string
+
 	gl        *webgl.WebGL
 	glContext *GlContext
 	beep      *Beep
 }
 
-func NewChip8WebEmulator(gl *webgl.WebGL, hooks chip8.Hooks) *Chip8WebEmulator {
+func NewChip8WebEmulator(gl *webgl.WebGL, hooks chip8.Hooks, fontSource, beepSource string) *Chip8WebEmulator {
 	e := &Chip8WebEmulator{
 		Chip8Emulator: *chip8.NewChip8Emulator(hooks),
 		gl:            gl,
-		glContext:     NewGlContext(gl),
+		glContext:     NewGlContext(gl, fontSource),
+		beepSource:    beepSource,
+		fontSource:    fontSource,
 	}
 	return e
 }
@@ -42,7 +47,7 @@ func (e *Chip8WebEmulator) Draw() {
 
 func (e *Chip8WebEmulator) PlayBeep() {
 	if e.beep == nil {
-		e.beep = NewBeep()
+		e.beep = NewBeepWithSource(e.beepSource)
 	}
 	e.beep.Play()
 }

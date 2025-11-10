@@ -23,13 +23,13 @@ type GlContext struct {
 	glPrograms *programs.Programs
 }
 
-func NewGlContext(gl *webgl.WebGL) *GlContext {
+func NewGlContext(gl *webgl.WebGL, fontSource string) *GlContext {
 	context := &GlContext{
 		gl:         gl,
 		colors:     make([]float32, chip8.SCREEN_WIDTH*chip8.SCREEN_HEIGHT*3*2*3),
 		onColor:    NewColor(0xF2CE03),
 		offColor:   NewColor(0x8E6903),
-		glPrograms: programs.NewPrograms(gl),
+		glPrograms: programs.NewPrograms(gl, fontSource),
 	}
 	return context
 }

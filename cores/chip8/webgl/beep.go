@@ -10,8 +10,12 @@ type Beep struct {
 }
 
 func NewBeep() *Beep {
+	return NewBeepWithSource("beep.ogg")
+}
+
+func NewBeepWithSource(beepSource string) *Beep {
 	audio := js.Global().Get("document").Call("createElement", "audio")
-	audio.Set("src", "beep.ogg")
+	audio.Set("src", beepSource)
 	audio.Set("preload", "auto")
 	audio.Set("volume", 0.5)
 

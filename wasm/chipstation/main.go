@@ -4,6 +4,7 @@ package main
 
 import (
 	_ "embed"
+	"io/fs"
 	"log"
 	"os"
 	"syscall/js"
@@ -73,6 +74,8 @@ func main() {
 		panic(err)
 	}
 
+	fontUrl, beepUrl := initAssets()
+
 	e = chip8web.NewChip8WebEmulator(gl, chip8.Hooks{
 		Draw: func() {
 			e.Draw()
@@ -89,7 +92,7 @@ func main() {
 				m.Handle(e)
 			}
 		},
-	})
+	}, fontUrl, beepUrl)
 
 	ui.SetEmulator(e)
 
@@ -115,6 +118,31 @@ func main() {
 	js.Global().Set("emulator", emulatorObj)
 
 	<-done
+}
+
+func initAssets() (string, string) {
+	fontData, err := fs.ReadFile(assets, "assets/font.png")
+	if err != nil {
+		log.Fatalf("Failed to read font asset: %v", err)
+	}
+	fontUrl := createBlobUrl(fontData)
+
+	beepData, err := fs.ReadFile(assets, "assets/beep.ogg")
+	if err != nil {
+		log.Fatalf("Failed to read beep asset: %v", err)
+	}
+	beepUrl := createBlobUrl(beepData)
+
+	return fontUrl, beepUrl
+}
+
+func createBlobUrl(data []byte) string {
+	uint8Array := js.Global().Get("Uint8Array").New(len(data))
+	js.CopyBytesToJS(uint8Array, data)
+
+	blob := js.Global().Get("Blob").New([]interface{}{uint8Array}, map[string]interface{}{"type": "application/octet-stream"})
+	url := js.Global().Get("URL").Call("createObjectURL", blob)
+	return url.String()
 }
 
 func setIpf(this js.Value, p []js.Value) interface{} {

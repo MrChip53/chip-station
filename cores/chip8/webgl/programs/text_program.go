@@ -54,14 +54,20 @@ type TextProgram struct {
 	positionAttrib int
 	textureUniform webgl.Location
 	loaded         bool
+	fontSource     string
 }
 
 func NewTextProgram(gl *webgl.WebGL) *TextProgram {
+	return NewTextProgramWithFontSource(gl, "./assets/font.png")
+}
+
+func NewTextProgramWithFontSource(gl *webgl.WebGL, fontSource string) *TextProgram {
 	c := &TextProgram{
 		program:        gl.CreateProgram(),
 		texture:        gl.CreateTexture(),
 		vertexBuffer:   gl.CreateBuffer(),
 		texCoordBuffer: gl.CreateBuffer(),
+		fontSource:     fontSource,
 	}
 	c.init(gl)
 	return c
@@ -156,7 +162,7 @@ func (c *TextProgram) init(gl *webgl.WebGL) {
 		return nil
 	})
 
-	img.Set("src", "./assets/font.png")
+	img.Set("src", c.fontSource)
 	img.Set("onload", cbFunc)
 }
 
