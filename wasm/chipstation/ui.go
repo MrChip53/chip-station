@@ -43,20 +43,45 @@ type ROMOption struct {
 }
 
 const styledTemplate = `
+<style>
+.chip8-btn {
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+.chip8-btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+.chip8-select {
+	background: rgba(255, 255, 255, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	color: white;
+	border-radius: 4px;
+	padding: 4px 8px;
+}
+.chip8-select option {
+	background: white;
+	color: black;
+}
+</style>
 <div style="display: flex; justify-content: center;">
     <div style="position: relative; display: inline-block;">
 		<canvas id="cs-screen" width="{{.DisplayWidth}}" height="{{.DisplayHeight}}"></canvas>
 		<div style="position:absolute; top:0; left:0; width:100%; padding:4px; background:rgba(0,0,0,0.4); color:white; font:12px monospace; box-sizing:border-box;">
-			<button id="startBtn" class="btn btn-primary">Start</button>
-        	<button id="stopBtn" class="btn btn-secondary">Stop</button>
-        	<button id="resetBtn" class="btn btn-warning">Reset</button>
-			<button onclick="downloadRom()">Download ROM</button>
-			<select id="speedDropdown" style="width: 100px;">
+			<button type="button" id="startBtn" class="chip8-btn">Start</button>
+        	<button type="button" id="stopBtn" class="chip8-btn">Stop</button>
+        	<button type="button" id="resetBtn" class="chip8-btn">Reset</button>
+			<button type="button" class="chip8-btn" onclick="downloadRom()">Download ROM</button>
+			<select id="speedDropdown" class="chip8-select" style="width: 100px;">
 				{{range .Speeds}}
 				<option value="{{.Value}}">{{.Label}}</option>
 				{{end}}
         	</select>
-			<select id="romSelector" style="width: 100px;">
+			<select id="romSelector" class="chip8-select" style="width: 100px;">
 				{{range .ROMs}}
 				<option value="{{.Value}}">{{.Label}}</option>
 				{{end}}
@@ -196,19 +221,29 @@ func (ui *UI) attachHandler(elementKey, event string, handler func(js.Value, []j
 	elem.Call("addEventListener", event, jsFunc)
 }
 
+func (ui *UI) focusScreen() {
+	screen := ui.elements["cs-screen"]
+	if !screen.IsUndefined() && !screen.IsNull() {
+		screen.Call("focus")
+	}
+}
+
 // Event handlers with emulator side effects
 func (ui *UI) handleStart(this js.Value, args []js.Value) interface{} {
 	ui.emulator.Resume()
+	ui.focusScreen()
 	return nil
 }
 
 func (ui *UI) handleStop(this js.Value, args []js.Value) interface{} {
 	ui.emulator.Pause()
+	ui.focusScreen()
 	return nil
 }
 
 func (ui *UI) handleReset(this js.Value, args []js.Value) interface{} {
 	ui.emulator.Start()
+	ui.focusScreen()
 	return nil
 }
 
@@ -224,6 +259,7 @@ func (ui *UI) handleSpeedChange(this js.Value, args []js.Value) interface{} {
 	}
 
 	ui.emulator.SetIPF(speed)
+	ui.focusScreen()
 	return nil
 }
 
@@ -240,6 +276,7 @@ func (ui *UI) handleRomLoad(this js.Value, args []js.Value) interface{} {
 		ui.emulator.SwapROM(content)
 		ui.emulator.Start()
 	}
+	ui.focusScreen()
 	return nil
 }
 
