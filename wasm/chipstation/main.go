@@ -5,13 +5,14 @@ package main
 import (
 	_ "embed"
 	"log"
+	"os"
 	"syscall/js"
 	"time"
 
 	webgl "github.com/seqsense/webgl-go"
 
 	"github.com/mrchip53/chip-station/cores/chip8"
-	"github.com/mrchip53/chip-station/cores/chip8/webgl"
+	chip8web "github.com/mrchip53/chip-station/cores/chip8/webgl"
 )
 
 var done chan struct{}
@@ -57,7 +58,16 @@ func cycle(this js.Value, p []js.Value) interface{} {
 func main() {
 	var err error
 
-	canvas := js.Global().Get("document").Call("getElementById", "screen")
+	if len(os.Args) < 2 {
+		log.Fatal("Usage: <wasm file> <ui target>")
+	}
+
+	target := os.Args[1]
+
+	ui := NewUIWithContainer(e, target)
+	ui.Build()
+
+	canvas := ui.elements["cs-screen"]
 	gl, err = webgl.New(canvas)
 	if err != nil {
 		panic(err)
@@ -81,7 +91,13 @@ func main() {
 		},
 	})
 
+	ui.SetEmulator(e)
+
+	e.ToggleUi()
+
 	cycleFunction = js.FuncOf(cycle)
+
+	attachKeyListeners()
 
 	go runGameLoop()
 

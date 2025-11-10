@@ -1,22 +1,3 @@
-const keyMap = {
-  '1': 0x1,
-  '2': 0x2,
-  '3': 0x3,
-  '4': 0xC,
-  'q': 0x4,
-  'w': 0x5,
-  'e': 0x6,
-  'r': 0xD,
-  'a': 0x7,
-  's': 0x8,
-  'd': 0x9,
-  'f': 0xE,
-  'z': 0xA,
-  'x': 0x0,
-  'c': 0xB,
-  'v': 0xF,
-};
-
 const roms = {
   'OUTLAW': {
     name: 'Outlaw',
@@ -124,7 +105,7 @@ const roms = {
   },
 };
 
-async function loadWasm() {
+async function loadWasm(wasm, target) {
   if (WebAssembly && !WebAssembly.instantiateStreaming) { // polyfill
     WebAssembly.instantiateStreaming = async (resp, importObject) => {
       const source = await (await resp).arrayBuffer();
@@ -134,36 +115,10 @@ async function loadWasm() {
 
   const go = new Go();
 
-  const result = await WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject);
+  go.argv = [wasm, target];
+
+  const result = await WebAssembly.instantiateStreaming(fetch(wasm), go.importObject);
   go.run(result.instance);
-}
-
-
-function attachKeyListeners() {
-  const keyDownListener = (event) => {
-    const key = event.key;
-    const keyName = keyMap[key];
-    if (keyName) {
-      emulator.setKeyState(keyName, 1);
-    }
-  };
-
-  const keyUpListener = (event) => {
-    const key = event.key;
-    if (key === 'u') {
-      emulator.toggleUi()
-      return;
-    }
-    const keyName = keyMap[key];
-    if (keyName) {
-      emulator.setKeyState(keyName, 0);
-    }
-  };
-
-  document.addEventListener('keydown', keyDownListener);
-  document.addEventListener('keyup', keyUpListener);
-
-  return { keyDownListener, keyUpListener };
 }
 
 function attachRomUploadListeners() {
@@ -215,17 +170,6 @@ function attachRomUploadListeners() {
   document.addEventListener('drop', dropListener);
 
   return { dragOverListener, dragLeaveListener, dropListener };
-}
-
-function attachResizeListener(canvas, container) {
-  const resize = () => {
-    canvas.width = document.body.clientWidth*0.9;
-    canvas.height = (document.body.clientHeight-container.clientHeight)*0.9;
-  };
-
-  window.addEventListener('resize', resize);
-
-  return { resize };
 }
 
 function attachVisibilityListener() {
@@ -350,16 +294,16 @@ function setOffColorClick() {
 }
 
 (async () => {
-  const canvas = document.getElementById('screen');
-  const container = document.getElementById('container');
-  initRomSelect();
-  await loadWasm();
-  attachVisibilityListener();
-  const keyListeners = attachKeyListeners();
-  const romUploadListeners = attachRomUploadListeners();
-  const { resize } = attachResizeListener(canvas, container);
-  resize();
-  changeCycles();
+  // const canvas = document.getElementById('screen');
+  // const container = document.getElementById('container');
+  // initRomSelect();
+  await loadWasm("main.wasm", "chip8-ui");
+  // attachVisibilityListener();
+  // const keyListeners = attachKeyListeners();
+  // const romUploadListeners = attachRomUploadListeners();
+  // const { resize } = attachResizeListener(canvas, container);
+  // resize();
+  // changeCycles();
   
   console.log('ChipStation Initialized');
 })();

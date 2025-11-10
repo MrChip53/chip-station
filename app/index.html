@@ -3,49 +3,8 @@
     <head>
         <meta charset="utf-8">
     </head>
-    <body style="width: 100vw; height: 100vh; background-color: black; margin: 0;">
-        <main id="wasm"></main>
-        <div id="container" style="display: flex; flex-direction: column; width: 100%;">
-          <div style="display: flex; flex-direction: row; width: 100%; justify-content: space-around;">
-            <p style="color: white;">Drag and drop a rom or link to a rom anywhere to load it.</p>
-            <div style="display: flex; flex-direction: row; gap: 0.5em;">
-              <input type="text" id="color" style="width: 100px;" placeholder="#000000">
-              <button onclick="setOnColorClick()">Set On Color</button>
-              <button onclick="setOffColorClick()">Set Off Color</button>
-            </div>
-            <button onclick="play_pause()">Play/Pause</button>
-            <select onchange="changeCycles()" id="cycles" style="width: 100px;">
-              <option value="7">7 Cycles/Frame</option>
-              <option value="15">15 Cycles/Frame</option>
-              <option value="20" selected>20 Cycles/Frame</option>
-              <option value="30">30 Cycles/Frame</option>
-              <option value="100">100 Cycles/Frame</option>
-              <option value="200">200 Cycles/Frame</option>
-              <option value="500">500 Cycles/Frame</option>
-              <option value="1000">1000 Cycles/Frame</option>
-            </select>
-            <button onclick="downloadRom()">Download ROM</button>
-            <div style="display: flex; flex-direction: row; gap: 0.5em;">
-              <input type="text" id="rom-text" style="width: 300px;" placeholder="ROM Hex (comma or space delimited)">
-              <button onclick="loadRomFromUserText()">Load</button>
-            </div>
-            <div style="display: flex; flex-direction: row; gap: 0.5em;">
-              <select id="roms" style="width: 100px;">
-              </select>
-              <button onclick="loadRomFromSelect()">Load</button>
-            </div>
-          </div>
-          <div style="display: flex; flex-direction: row; width: 100%; justify-content: space-around;">
-            <p id="rom-description" style="color: white;">Press '1' to '4' to 'q' to 'v' to press keys.</p>
-            <a href="https://www.shadertoy.com/view/XlVczc" target="_blank" rel="noreferrer noopener">CRT Shader Source</a>
-          </div>
-          <div style="display: flex; flex-direction: row; width: 100%; justify-content: space-around;">
-            <a href="https://github.com/mrchip53/chip-station" target="_blank" rel="noreferrer noopener">Chip Station Source</a>
-          </div>
-        </div>
-        <div style="display: flex; justify-content: center;">
-          <canvas id="screen"></canvas>
-        </div>
+    <body style="width: 50vw; height: 100vh; background-color: black; margin: 0;">
+        <div id="chip8-ui"></div>
         <script src="wasm_exec.js"></script>
         <script src="main.js"></script>
     </body>
